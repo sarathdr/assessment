@@ -52,8 +52,17 @@
 
 			questions.each(function() {
 				var questionId = $( this ).data( 'question-id' );
-				var answer = $( this ).find( 'input:checked, textarea' ).val();
-				answers[ questionId ] = answer;
+				var questionType = $( this ).find( 'input' ).first().attr( 'type' );
+
+				if ( 'checkbox' === questionType ) {
+					var answer = $( this ).find( 'input:checked' ).map(function() {
+						return $( this ).val();
+					}).get();
+					answers[ questionId ] = answer;
+				} else {
+					var answer = $( this ).find( 'input:checked, textarea' ).val();
+					answers[ questionId ] = answer;
+				}
 			});
 
 			$.ajax({
@@ -67,10 +76,7 @@
 				},
 				success: function( response ) {
 					if ( response.success ) {
-						$( '.pa-quiz-container' ).html(
-							'<h2>' + response.data.dominant_label + '</h2>' +
-							'<p>Your score is ' + response.data.score_total + '</p>'
-						);
+						$( '.pa-quiz-container' ).html( response.data.success_message );
 					}
 				}
 			});

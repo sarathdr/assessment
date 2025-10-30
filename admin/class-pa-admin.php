@@ -32,6 +32,18 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'save_answer' ) );
 		add_action( 'admin_init', array( $this, 'delete_question' ) );
 		add_action( 'admin_init', array( $this, 'delete_answer' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+	}
+
+	/**
+	 * Enqueue the styles.
+	 */
+	public function enqueue_styles( $hook ) {
+		if ( strpos( $hook, 'personality-assessment' ) === false ) {
+			return;
+		}
+
+		wp_enqueue_style( 'pa-admin-style', PA_PLUGIN_URL . 'assets/css/admin.css', array(), PA_PLUGIN_VERSION );
 	}
 
 	/**
@@ -214,6 +226,19 @@ class Admin {
 								<input type="text" name="webhook_secret" id="webhook_secret" class="regular-text" value="<?php echo esc_attr( $quiz ? $quiz->webhook_secret : '' ); ?>" />
 							</td>
 						</tr>
+						<tr>
+							<th scope="row">
+								<label for="success_message"><?php esc_html_e( 'Success Message', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<?php
+								$content   = $quiz ? $quiz->success_message : '';
+								$editor_id = 'success_message';
+								$settings  = array( 'textarea_name' => 'success_message' );
+								wp_editor( $content, $editor_id, $settings );
+								?>
+							</td>
+						</tr>
 					</tbody>
 				</table>
 				<?php submit_button( __( 'Save Quiz', 'personality-assessment' ) ); ?>
@@ -275,10 +300,11 @@ class Admin {
 												</tr>
 												<tr>
 													<th scope="row">
-														<label for="personality_label"><?php esc_html_e( 'Personality Label', 'personality-assessment' ); ?></label>
+														<label for="personality_label"><?php esc_html_e( 'Personality Label(s)', 'personality-assessment' ); ?></label>
 													</th>
 													<td>
 														<input type="text" name="personality_label" id="personality_label" class="regular-text" />
+														<p class="description"><?php esc_html_e( 'Comma-separated.', 'personality-assessment' ); ?></p>
 													</td>
 												</tr>
 											</tbody>
@@ -392,12 +418,13 @@ class Admin {
 		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
 
 		$data = array(
-			'title'          => sanitize_text_field( $_POST['title'] ),
-			'description'    => sanitize_textarea_field( $_POST['description'] ),
-			'status'         => sanitize_text_field( $_POST['status'] ),
-			'require_login'  => isset( $_POST['require_login'] ) ? 1 : 0,
-			'webhook_url'    => sanitize_url( $_POST['webhook_url'] ),
-			'webhook_secret' => sanitize_text_field( $_POST['webhook_secret'] ),
+			'title'           => sanitize_text_field( $_POST['title'] ),
+			'description'     => sanitize_textarea_field( $_POST['description'] ),
+			'status'          => sanitize_text_field( $_POST['status'] ),
+			'require_login'   => isset( $_POST['require_login'] ) ? 1 : 0,
+			'webhook_url'     => sanitize_url( $_POST['webhook_url'] ),
+			'webhook_secret'  => sanitize_text_field( $_POST['webhook_secret'] ),
+			'success_message' => wp_kses_post( $_POST['success_message'] ),
 		);
 
 		if ( $quiz_id ) {
@@ -604,6 +631,61 @@ class Admin {
 					</tbody>
 				</table>
 				<?php submit_button( __( 'Save Question', 'personality-assessment' ) ); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the answer form.
+	 */
+	public function render_answer_form() {
+		global $wpdb;
+
+		$answer_id   = isset( $_GET['answer_id'] ) ? intval( $_GET['answer_id'] ) : 0;
+		$answer      = $wpdb->get_row( $wpd->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
+		$question_id = $answer->question_id;
+		$quiz_id     = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
+
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Edit Answer', 'personality-assessment' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) ); ?>" class="page-title-action"><?php esc_html_e( 'Back to Quiz', 'personality-assessment' ); ?></a>
+			<hr class="wp-header-end">
+			<form method="post">
+				<input type="hidden" name="answer_id" value="<?php echo esc_attr( $answer_id ); ?>" />
+				<input type="hidden" name="action" value="save_answer" />
+				<?php wp_nonce_field( 'pa_save_answer', 'pa_save_answer_nonce' ); ?>
+				<table class="form-table">
+					<tbody>
+						<tr>
+							<th scope="row">
+								<label for="answer_label"><?php esc_html_e( 'Label', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<input type="text" name="answer_label" id="answer_label" class="regular-text" value="<?php echo esc_attr( $answer->label ); ?>" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="answer_weight"><?php esc_html_e( 'Weight', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<input type="number" name="answer_weight" id="answer_weight" class="small-text" step="0.1" value="<?php echo esc_attr( $answer->weight ); ?>" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="personality_label"><?php esc_html_e( 'Personality Label(s)', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<input type="text" name="personality_label" id="personality_label" class="regular-text" value="<?php echo esc_attr( $answer->personality_label ); ?>" />
+								<p class="description"><?php esc_html_e( 'Comma-separated.', 'personality-assessment' ); ?></p>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<?php submit_button( __( 'Save Answer', 'personality-assessment' ) ); ?>
 			</form>
 		</div>
 		<?php

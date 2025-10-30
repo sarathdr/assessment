@@ -41,10 +41,18 @@ class Scoring {
 				$answer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
 				if ( $answer ) {
 					$score_total += $answer->weight;
-					if ( ! isset( $label_totals[ $answer->personality_label ] ) ) {
-						$label_totals[ $answer->personality_label ] = 0;
+					$labels       = array_map( 'trim', explode( ',', $answer->personality_label ) );
+					$label_count  = count( $labels );
+
+					if ( $label_count > 0 && ! empty( $labels[0] ) ) {
+						$weight_per_label = $answer->weight / $label_count;
+						foreach ( $labels as $label ) {
+							if ( ! isset( $label_totals[ $label ] ) ) {
+								$label_totals[ $label ] = 0;
+							}
+							$label_totals[ $label ] += $weight_per_label;
+						}
 					}
-					$label_totals[ $answer->personality_label ] += $answer->weight;
 				}
 			}
 

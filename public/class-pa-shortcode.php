@@ -54,7 +54,9 @@ class Shortcode {
 	public function render_quiz( $atts ) {
 		$atts = shortcode_atts(
 			array(
-				'id' => 0,
+				'id'            => 0,
+				'show_title'    => 'true',
+				'show_progress' => 'true',
 			),
 			$atts,
 			'pa_quiz'
@@ -88,9 +90,14 @@ class Shortcode {
 		ob_start();
 		?>
 		<div class="pa-quiz-container" data-quiz-id="<?php echo esc_attr( $quiz_id ); ?>">
-			<div class="pa-progress-bar">
-				<div class="pa-progress-bar-inner" style="width: 0%;"></div>
-			</div>
+			<?php if ( 'true' === $atts['show_title'] ) : ?>
+				<h1><?php echo esc_html( $quiz->title ); ?></h1>
+			<?php endif; ?>
+			<?php if ( 'true' === $atts['show_progress'] ) : ?>
+				<div class="pa-progress-bar">
+					<div class="pa-progress-bar-inner" style="width: 0%;"></div>
+				</div>
+			<?php endif; ?>
 			<div class="pa-questions">
 				<?php foreach ( $questions as $index => $question ) : ?>
 					<div class="pa-question <?php echo ( 0 === $index ) ? 'active' : ''; ?>" data-question-id="<?php echo esc_attr( $question->id ); ?>">
@@ -187,8 +194,7 @@ class Shortcode {
 
 		wp_send_json_success(
 			array(
-				'dominant_label' => $score_data['dominant_label'],
-				'score_total'    => $score_data['score_total'],
+				'success_message' => do_shortcode( $quiz->success_message ),
 			)
 		);
 	}

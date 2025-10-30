@@ -1,0 +1,87 @@
+/* Personality Assessment Admin Styles */
+
+.wrap .wp-heading-inline + .page-title-action {
+    margin-left: 10px;
+    top: -2px;
+    position: relative;
+}
+
+#questions-section {
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+#questions-section h2,
+#questions-section h3 {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.question-item {
+    padding: 15px;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+    border-radius: 3px;
+    margin-bottom: 20px;
+}
+
+.question-item h3 {
+    margin-top: 0;
+    font-size: 1.2em;
+    border-bottom: none;
+}
+
+.question-item p {
+    margin: 5px 0;
+}
+
+.question-item .edit-question,
+.question-item .delete-question {
+    margin-right: 10px;
+    color: #0073aa;
+    text-decoration: none;
+}
+
+.question-item .delete-question {
+    color: #a00;
+}
+
+.answers-section {
+    margin-top: 15px;
+    padding-left: 20px;
+    border-left: 3px solid #0073aa;
+}
+
+.answers-section h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.answer-item {
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #eee;
+    margin-bottom: 10px;
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.answer-item p {
+    margin: 0;
+    flex-grow: 1;
+}
+
+.answer-item a {
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+.answers-section .form-table {
+    margin-top: 15px;
+}

@@ -49,6 +49,7 @@ class Installer {
 			settings LONGTEXT NULL,
 			webhook_url VARCHAR(255) NULL,
 			webhook_secret VARCHAR(255) NULL,
+			success_message LONGTEXT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			PRIMARY KEY  (id),
@@ -75,7 +76,7 @@ class Installer {
 			question_id BIGINT NOT NULL,
 			label TEXT NOT NULL,
 			weight DECIMAL(10,2) DEFAULT 0 NOT NULL,
-			personality_label VARCHAR(100) NULL,
+			personality_label TEXT NULL,
 			position INT NOT NULL,
 			PRIMARY KEY  (id),
 			KEY question_id (question_id)
