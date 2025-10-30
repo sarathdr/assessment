@@ -32,7 +32,41 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'save_answer' ) );
 		add_action( 'admin_init', array( $this, 'delete_question' ) );
 		add_action( 'admin_init', array( $this, 'delete_answer' ) );
+		add_action( 'admin_init', array( $this, 'create_quiz_and_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+	}
+
+	/**
+	 * Create a new quiz and redirect to the edit screen.
+	 */
+	public function create_quiz_and_redirect() {
+		if ( ! isset( $_GET['page'] ) || 'personality-assessment' !== $_GET['page'] ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['action'] ) || 'new' !== $_GET['action'] ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$wpdb->insert(
+			"{$wpdb->prefix}pa_quizzes",
+			array(
+				'title'  => __( 'New Quiz', 'personality-assessment' ),
+				'slug'   => 'new-quiz-' . time(),
+				'status' => 'draft',
+			)
+		);
+
+		$quiz_id = $wpdb->insert_id;
+
+		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
+		exit;
 	}
 
 	/**
@@ -103,7 +137,6 @@ class Admin {
 		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
 
 		switch ( $action ) {
-			case 'new':
 			case 'edit':
 				$this->render_quiz_form();
 				break;
@@ -160,13 +193,7 @@ class Admin {
 		?>
 		<div class="wrap">
 			<h1 class="wp-heading-inline">
-				<?php
-				if ( $quiz_id ) {
-					esc_html_e( 'Edit Quiz', 'personality-assessment' );
-				} else {
-					esc_html_e( 'Add New Quiz', 'personality-assessment' );
-				}
-				?>
+				<?php esc_html_e( 'Edit Quiz', 'personality-assessment' ); ?>
 			</h1>
 			<a href="?page=personality-assessment" class="page-title-action"><?php esc_html_e( 'Back to Quizzes', 'personality-assessment' ); ?></a>
 			<hr class="wp-header-end">
