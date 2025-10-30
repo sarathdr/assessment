@@ -41,10 +41,6 @@ class Admin {
 	 * AJAX handler for adding an answer.
 	 */
 	public function add_answer_ajax_handler() {
-		if ( ! isset( $_POST['action'] ) || 'save_answer' !== $_POST['action'] ) {
-			wp_send_json_error( array( 'message' => 'Invalid action.' ) );
-		}
-
 		if ( ! isset( $_POST['pa_save_answer_nonce'] ) || ! wp_verify_nonce( $_POST['pa_save_answer_nonce'], 'pa_save_answer' ) ) {
 			wp_send_json_error( array( 'message' => 'Nonce verification failed.' ) );
 		}
@@ -373,7 +369,7 @@ class Admin {
 												<input type="text" name="personality_label" id="personality_label" class="regular-text" />
 											</div>
 										</div>
-										<?php submit_button( __( 'Add Answer', 'personality-assessment' ) ); ?>
+										<?php submit_button( __( 'Add Answer', 'personality-assessment' ), 'primary', 'submit', false, array( 'class' => 'add-answer-submit-button' ) ); ?>
 									</form>
 								</div>
 							</div>

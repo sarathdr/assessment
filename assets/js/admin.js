@@ -2,7 +2,7 @@
 	'use strict';
 
 	$(function() {
-		$( document ).on( 'click', '.add-answer-form .submit', function( e ) {
+		$( document ).on( 'click', '.add-answer-submit-button', function( e ) {
 			e.preventDefault();
 
 			var form = $( this ).closest( 'form' );
