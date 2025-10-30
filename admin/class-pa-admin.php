@@ -643,7 +643,7 @@ class Admin {
 		global $wpdb;
 
 		$answer_id   = isset( $_GET['answer_id'] ) ? intval( $_GET['answer_id'] ) : 0;
-		$answer      = $wpdb->get_row( $wpd->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
+		$answer      = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
 		$question_id = $answer->question_id;
 		$quiz_id     = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
 
