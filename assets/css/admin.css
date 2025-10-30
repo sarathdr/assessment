@@ -85,3 +85,26 @@
 .answers-section .form-table {
     margin-top: 15px;
 }
+
+.add-answer-form {
+	display: flex;
+	align-items: flex-end;
+	gap: 10px;
+}
+
+.add-answer-form .form-fields {
+	display: flex;
+	gap: 10px;
+	flex-grow: 1;
+}
+
+.add-answer-form .field {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+}
+
+.add-answer-form label {
+	font-weight: bold;
+	margin-bottom: 5px;
+}

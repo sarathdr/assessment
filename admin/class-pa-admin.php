@@ -34,6 +34,55 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'delete_answer' ) );
 		add_action( 'admin_init', array( $this, 'create_quiz_and_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+		add_action( 'wp_ajax_pa_add_answer', array( $this, 'add_answer_ajax_handler' ) );
+	}
+
+	/**
+	 * AJAX handler for adding an answer.
+	 */
+	public function add_answer_ajax_handler() {
+		if ( ! isset( $_POST['action'] ) || 'save_answer' !== $_POST['action'] ) {
+			wp_send_json_error( array( 'message' => 'Invalid action.' ) );
+		}
+
+		if ( ! isset( $_POST['pa_save_answer_nonce'] ) || ! wp_verify_nonce( $_POST['pa_save_answer_nonce'], 'pa_save_answer' ) ) {
+			wp_send_json_error( array( 'message' => 'Nonce verification failed.' ) );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => 'You do not have permission to do this.' ) );
+		}
+
+		global $wpdb;
+
+		$question_id = intval( $_POST['question_id'] );
+		$data        = array(
+			'label'             => sanitize_text_field( $_POST['answer_label'] ),
+			'weight'            => floatval( $_POST['answer_weight'] ),
+			'personality_label' => sanitize_text_field( $_POST['personality_label'] ),
+			'question_id'       => $question_id,
+		);
+
+		$position         = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_answers WHERE question_id = %d", $question_id ) );
+		$data['position'] = $position + 1;
+
+		$wpdb->insert( "{$wpdb->prefix}pa_answers", $data );
+		$answer_id = $wpdb->insert_id;
+		$answer    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
+
+		ob_start();
+		?>
+		<div class="answer-item">
+			<p><?php echo esc_html( $answer->label ); ?></p>
+			<p><strong><?php esc_html_e( 'Weight:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->weight ); ?></p>
+			<p><strong><?php esc_html_e( 'Label:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->personality_label ); ?></p>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_answer&answer_id=' . $answer->id ) ); ?>" class="edit-answer"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
+			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete',. 'personality-assessment' ); ?></a>
+		</div>
+		<?php
+		$html = ob_get_clean();
+
+		wp_send_json_success( array( 'html' => $html ) );
 	}
 
 	/**
@@ -78,6 +127,7 @@ class Admin {
 		}
 
 		wp_enqueue_style( 'pa-admin-style', PA_PLUGIN_URL . 'assets/css/admin.css', array(), PA_PLUGIN_VERSION );
+		wp_enqueue_script( 'pa-admin-script', PA_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery' ), PA_PLUGIN_VERSION, true );
 	}
 
 	/**
@@ -287,55 +337,42 @@ class Admin {
 
 								<div class="answers-section">
 									<h4><?php esc_html_e( 'Answers', 'personality-assessment' ); ?></h4>
-									<?php
-									$answers = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE question_id = %d ORDER BY position ASC", $question->id ) );
-									if ( $answers ) {
-										foreach ( $answers as $answer ) {
-											?>
-											<div class="answer-item">
-												<p><?php echo esc_html( $answer->label ); ?></p>
-												<p><strong><?php esc_html_e( 'Weight:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->weight ); ?></p>
-												<p><strong><?php esc_html_e( 'Label:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->personality_label ); ?></p>
-												<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_answer&answer_id=' . $answer->id ) ); ?>" class="edit-answer"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
-												<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
-											</div>
-											<?php
+									<div class="answers-list">
+										<?php
+										$answers = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE question_id = %d ORDER BY position ASC", $question->id ) );
+										if ( $answers ) {
+											foreach ( $answers as $answer ) {
+												?>
+												<div class="answer-item">
+													<p><?php echo esc_html( $answer->label ); ?></p>
+													<p><strong><?php esc_html_e( 'Weight:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->weight ); ?></p>
+													<p><strong><?php esc_html_e( 'Label:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->personality_label ); ?></p>
+													<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_answer&answer_id=' . $answer->id ) ); ?>" class="edit-answer"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
+													<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
+												</div>
+												<?php
+											}
 										}
-									}
-									?>
-									<form method="post">
+										?>
+									</div>
+									<form method="post" class="add-answer-form">
 										<input type="hidden" name="question_id" value="<?php echo esc_attr( $question->id ); ?>" />
 										<input type="hidden" name="action" value="save_answer" />
 										<?php wp_nonce_field( 'pa_save_answer', 'pa_save_answer_nonce' ); ?>
-										<table class="form-table">
-											<tbody>
-												<tr>
-													<th scope="row">
-														<label for="answer_label"><?php esc_html_e( 'Label', 'personality-assessment' ); ?></label>
-													</th>
-													<td>
-														<input type="text" name="answer_label" id="answer_label" class="regular-text" />
-													</td>
-												</tr>
-												<tr>
-													<th scope="row">
-														<label for="answer_weight"><?php esc_html_e( 'Weight', 'personality-assessment' ); ?></label>
-													</th>
-													<td>
-														<input type="number" name="answer_weight" id="answer_weight" class="small-text" step="0.1" />
-													</td>
-												</tr>
-												<tr>
-													<th scope="row">
-														<label for="personality_label"><?php esc_html_e( 'Personality Label(s)', 'personality-assessment' ); ?></label>
-													</th>
-													<td>
-														<input type="text" name="personality_label" id="personality_label" class="regular-text" />
-														<p class="description"><?php esc_html_e( 'Comma-separated.', 'personality-assessment' ); ?></p>
-													</td>
-												</tr>
-											</tbody>
-										</table>
+										<div class="form-fields">
+											<div class="field">
+												<label for="answer_label"><?php esc_html_e( 'Label', 'personality-assessment' ); ?></label>
+												<input type="text" name="answer_label" id="answer_label" class="regular-text" />
+											</div>
+											<div class="field">
+												<label for="answer_weight"><?php esc_html_e( 'Weight', 'personality-assessment' ); ?></label>
+												<input type="number" name="answer_weight" id="answer_weight" class="small-text" step="0.1" />
+											</div>
+											<div class="field">
+												<label for="personality_label"><?php esc_html_e( 'Personality Label(s)', 'personality-assessment' ); ?></label>
+												<input type="text" name="personality_label" id="personality_label" class="regular-text" />
+											</div>
+										</div>
 										<?php submit_button( __( 'Add Answer', 'personality-assessment' ) ); ?>
 									</form>
 								</div>
@@ -568,6 +605,10 @@ class Admin {
 	 */
 	public function save_answer() {
 		if ( ! isset( $_POST['action'] ) || 'save_answer' !== $_POST['action'] ) {
+			return;
+		}
+
+		if ( wp_doing_ajax() ) {
 			return;
 		}
 
