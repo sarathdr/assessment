@@ -95,6 +95,12 @@ class Admin {
 			case 'edit':
 				$this->render_quiz_form();
 				break;
+			case 'edit_question':
+				$this->render_question_form();
+				break;
+			case 'edit_answer':
+				$this->render_answer_form();
+				break;
 			default:
 				$this->render_quizzes_list();
 				break;
@@ -424,19 +430,24 @@ class Admin {
 
 		global $wpdb;
 
-		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
+		$question_id = isset( $_POST['question_id'] ) ? intval( $_POST['question_id'] ) : 0;
+		$quiz_id     = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
 
 		$data = array(
-			'quiz_id'     => $quiz_id,
 			'title'       => sanitize_text_field( $_POST['question_title'] ),
 			'type'        => sanitize_text_field( $_POST['question_type'] ),
 			'is_required' => isset( $_POST['is_required'] ) ? 1 : 0,
 		);
 
-		$position = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $quiz_id ) );
-		$data['position'] = $position + 1;
-
-		$wpdb->insert( "{$wpdb->prefix}pa_questions", $data );
+		if ( $question_id ) {
+			$wpdb->update( "{$wpdb->prefix}pa_questions", $data, array( 'id' => $question_id ) );
+			$quiz_id = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
+		} else {
+			$data['quiz_id'] = $quiz_id;
+			$position        = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $quiz_id ) );
+			$data['position'] = $position + 1;
+			$wpdb->insert( "{$wpdb->prefix}pa_questions", $data );
+		}
 
 		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
 		exit;
@@ -516,22 +527,85 @@ class Admin {
 
 		global $wpdb;
 
+		$answer_id   = isset( $_POST['answer_id'] ) ? intval( $_POST['answer_id'] ) : 0;
 		$question_id = isset( $_POST['question_id'] ) ? intval( $_POST['question_id'] ) : 0;
-		$quiz_id     = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
 
 		$data = array(
-			'question_id'       => $question_id,
 			'label'             => sanitize_text_field( $_POST['answer_label'] ),
 			'weight'            => floatval( $_POST['answer_weight'] ),
 			'personality_label' => sanitize_text_field( $_POST['personality_label'] ),
 		);
 
-		$position = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_answers WHERE question_id = %d", $question_id ) );
-		$data['position'] = $position + 1;
+		if ( $answer_id ) {
+			$wpdb->update( "{$wpdb->prefix}pa_answers", $data, array( 'id' => $answer_id ) );
+			$question_id = $wpdb->get_var( $wpdb->prepare( "SELECT question_id FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
+		} else {
+			$data['question_id'] = $question_id;
+			$position            = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_answers WHERE question_id = %d", $question_id ) );
+			$data['position']    = $position + 1;
+			$wpdb->insert( "{$wpdb->prefix}pa_answers", $data );
+		}
 
-		$wpdb->insert( "{$wpdb->prefix}pa_answers", $data );
+		$quiz_id = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
 
 		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
 		exit;
+	}
+
+	/**
+	 * Render the question form.
+	 */
+	public function render_question_form() {
+		global $wpdb;
+
+		$question_id = isset( $_GET['question_id'] ) ? intval( $_GET['question_id'] ) : 0;
+		$question    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
+		$quiz_id     = $question->quiz_id;
+
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Edit Question', 'personality-assessment' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) ); ?>" class="page-title-action"><?php esc_html_e( 'Back to Quiz', 'personality-assessment' ); ?></a>
+			<hr class="wp-header-end">
+			<form method="post">
+				<input type="hidden" name="question_id" value="<?php echo esc_attr( $question_id ); ?>" />
+				<input type="hidden" name="action" value="save_question" />
+				<?php wp_nonce_field( 'pa_save_question', 'pa_save_question_nonce' ); ?>
+				<table class="form-table">
+					<tbody>
+						<tr>
+							<th scope="row">
+								<label for="question_title"><?php esc_html_e( 'Title', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<input type="text" name="question_title" id="question_title" class="regular-text" value="<?php echo esc_attr( $question->title ); ?>" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="question_type"><?php esc_html_e( 'Type', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<select name="question_type" id="question_type">
+									<option value="text" <?php selected( $question->type, 'text' ); ?>><?php esc_html_e( 'Text', 'personality-assessment' ); ?></option>
+									<option value="single" <?php selected( $question->type, 'single' ); ?>><?php esc_html_e( 'Single Choice', 'personality-assessment' ); ?></option>
+									<option value="multiple" <?php selected( $question->type, 'multiple' ); ?>><?php esc_html_e( 'Multiple Choice', 'personality-assessment' ); ?></option>
+								</select>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="is_required"><?php esc_html_e( 'Required', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<input type="checkbox" name="is_required" id="is_required" value="1" <?php checked( $question->is_required, 1 ); ?> />
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<?php submit_button( __( 'Save Question', 'personality-assessment' ) ); ?>
+			</form>
+		</div>
+		<?php
 	}
 }
