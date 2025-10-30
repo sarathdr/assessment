@@ -2,10 +2,10 @@
 	'use strict';
 
 	$(function() {
-		$( document ).on( 'click', '.add-answer-submit-button', function( e ) {
+		$( document ).on( 'submit', '.add-answer-form', function( e ) {
 			e.preventDefault();
 
-			var form = $( this ).closest( 'form' );
+			var form = $( this );
 			var data = form.serialize() + '&action=pa_add_answer';
 
 			$.ajax({
