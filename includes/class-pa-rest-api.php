@@ -35,6 +35,18 @@ class REST_API {
 	public function register_routes() {
 		register_rest_route(
 			'pa/v1',
+			'/quizzes',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'get_quizzes' ),
+				'permission_callback' => function () {
+					return current_user_can( 'edit_posts' );
+				},
+			)
+		);
+
+		register_rest_route(
+			'pa/v1',
 			'/quizzes/(?P<id>\d+)',
 			array(
 				'methods'             => 'GET',
@@ -97,6 +109,17 @@ class REST_API {
 		$quiz->questions = $questions;
 
 		return new \WP_REST_Response( $quiz );
+	}
+
+	/**
+	 * Get all quizzes.
+	 */
+	public function get_quizzes( $request ) {
+		global $wpdb;
+
+		$quizzes = $wpdb->get_results( "SELECT id, title FROM {$wpdb->prefix}pa_quizzes" );
+
+		return new \WP_REST_Response( $quizzes );
 	}
 
 	/**

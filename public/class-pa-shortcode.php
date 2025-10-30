@@ -104,24 +104,28 @@ class Shortcode {
 								<?php
 								break;
 							case 'single':
-								foreach ( $answers as $answer ) {
-									?>
-									<label>
-										<input type="radio" name="answers[<?php echo esc_attr( $question->id ); ?>]" value="<?php echo esc_attr( $answer->id ); ?>">
-										<?php echo esc_html( $answer->label ); ?>
-									</label>
-									<?php
-								}
+								?>
+								<div class="pa-answers">
+									<?php foreach ( $answers as $answer ) : ?>
+										<label class="pa-answer">
+											<input type="radio" name="answers[<?php echo esc_attr( $question->id ); ?>]" value="<?php echo esc_attr( $answer->id ); ?>">
+											<span><?php echo esc_html( $answer->label ); ?></span>
+										</label>
+									<?php endforeach; ?>
+								</div>
+								<?php
 								break;
 							case 'multiple':
-								foreach ( $answers as $answer ) {
-									?>
-									<label>
-										<input type="checkbox" name="answers[<?php echo esc_attr( $question->id ); ?>][]" value="<?php echo esc_attr( $answer->id ); ?>">
-										<?php echo esc_html( $answer->label ); ?>
-									</label>
-									<?php
-								}
+								?>
+								<div class="pa-answers">
+									<?php foreach ( $answers as $answer ) : ?>
+										<label class="pa-answer">
+											<input type="checkbox" name="answers[<?php echo esc_attr( $question->id ); ?>][]" value="<?php echo esc_attr( $answer->id ); ?>">
+											<span><?php echo esc_html( $answer->label ); ?></span>
+										</label>
+									<?php endforeach; ?>
+								</div>
+								<?php
 								break;
 						}
 						?>
@@ -162,6 +166,24 @@ class Shortcode {
 		);
 
 		$wpdb->insert( "{$wpdb->prefix}pa_results", $result_data );
+
+		$quiz = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_quizzes WHERE id = %d", $quiz_id ) );
+
+		if ( $quiz->webhook_url ) {
+			$payload = wp_json_encode( $result_data );
+			$signature = hash_hmac( 'sha256', $payload, $quiz->webhook_secret );
+
+			wp_remote_post(
+				$quiz->webhook_url,
+				array(
+					'headers' => array(
+						'Content-Type'   => 'application/json',
+						'X-PA-Signature' => 'sha256=' . $signature,
+					),
+					'body'    => $payload,
+				)
+			);
+		}
 
 		wp_send_json_success(
 			array(

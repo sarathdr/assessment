@@ -21,16 +21,12 @@ registerBlockType( 'personality-assessment/quiz', {
 			default: true,
 		},
 	},
-	edit: withSelect( ( select ) => {
-		return {
-			quizzes: select( 'core' ).getEntityRecords( 'root', 'widgetType', {
-				per_page: -1,
-			} ),
-		};
-	} )( ( { quizzes, attributes, setAttributes } ) => {
+	edit: withSelect( ( select ) => ( {
+		quizzes: select( 'core' ).apiFetch( { path: '/pa/v1/quizzes' } ),
+	} ) )( ( { quizzes, attributes, setAttributes } ) => {
 		const quizOptions = quizzes
 			? quizzes.map( ( quiz ) => ( {
-					label: quiz.name,
+					label: quiz.title,
 					value: quiz.id,
 			  } ) )
 			: [];

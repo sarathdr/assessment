@@ -30,6 +30,8 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'save_quiz' ) );
 		add_action( 'admin_init', array( $this, 'save_question' ) );
 		add_action( 'admin_init', array( $this, 'save_answer' ) );
+		add_action( 'admin_init', array( $this, 'delete_question' ) );
+		add_action( 'admin_init', array( $this, 'delete_answer' ) );
 	}
 
 	/**
@@ -86,10 +88,23 @@ class Admin {
 	 * Render the quizzes page.
 	 */
 	public function render_quizzes_page() {
-		if ( isset( $_GET['action'] ) && 'edit' === $_GET['action'] ) {
-			$this->render_quiz_form();
-			return;
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
+
+		switch ( $action ) {
+			case 'new':
+			case 'edit':
+				$this->render_quiz_form();
+				break;
+			default:
+				$this->render_quizzes_list();
+				break;
 		}
+	}
+
+	/**
+	 * Render the quizzes list.
+	 */
+	public function render_quizzes_list() {
 
 		require_once PA_PLUGIN_DIR . 'admin/class-pa-quizzes-list-table.php';
 		$list_table = new Quizzes_List_Table();
@@ -177,6 +192,22 @@ class Admin {
 								<input type="checkbox" name="require_login" id="require_login" value="1" <?php checked( $quiz ? $quiz->require_login : 1, 1 ); ?> />
 							</td>
 						</tr>
+						<tr>
+							<th scope="row">
+								<label for="webhook_url"><?php esc_html_e( 'Webhook URL', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<input type="url" name="webhook_url" id="webhook_url" class="regular-text" value="<?php echo esc_attr( $quiz ? $quiz->webhook_url : '' ); ?>" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<label for="webhook_secret"><?php esc_html_e( 'Webhook Secret', 'personality-assessment' ); ?></label>
+							</th>
+							<td>
+								<input type="text" name="webhook_secret" id="webhook_secret" class="regular-text" value="<?php echo esc_attr( $quiz ? $quiz->webhook_secret : '' ); ?>" />
+							</td>
+						</tr>
 					</tbody>
 				</table>
 				<?php submit_button( __( 'Save Quiz', 'personality-assessment' ) ); ?>
@@ -193,8 +224,8 @@ class Admin {
 								<h3><?php echo esc_html( $question->title ); ?></h3>
 								<p><strong><?php esc_html_e( 'Type:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $question->type ); ?></p>
 								<p><strong><?php esc_html_e( 'Required:', 'personality-assessment' ); ?></strong> <?php echo $question->is_required ? esc_html__( 'Yes', 'personality-assessment' ) : esc_html__( 'No', 'personality-assessment' ); ?></p>
-								<a href="#" class="edit-question"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
-								<a href="#" class="delete-question"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_question&question_id=' . $question->id ) ); ?>" class="edit-question"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
+								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_question&question_id=' . $question->id ), 'pa_delete_question' ) ); ?>" class="delete-question"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
 
 								<div class="answers-section">
 									<h4><?php esc_html_e( 'Answers', 'personality-assessment' ); ?></h4>
@@ -207,6 +238,8 @@ class Admin {
 												<p><?php echo esc_html( $answer->label ); ?></p>
 												<p><strong><?php esc_html_e( 'Weight:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->weight ); ?></p>
 												<p><strong><?php esc_html_e( 'Label:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->personality_label ); ?></p>
+												<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_answer&answer_id=' . $answer->id ) ); ?>" class="edit-answer"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
+												<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
 											</div>
 											<?php
 										}
@@ -353,10 +386,12 @@ class Admin {
 		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
 
 		$data = array(
-			'title'         => sanitize_text_field( $_POST['title'] ),
-			'description'   => sanitize_textarea_field( $_POST['description'] ),
-			'status'        => sanitize_text_field( $_POST['status'] ),
-			'require_login' => isset( $_POST['require_login'] ) ? 1 : 0,
+			'title'          => sanitize_text_field( $_POST['title'] ),
+			'description'    => sanitize_textarea_field( $_POST['description'] ),
+			'status'         => sanitize_text_field( $_POST['status'] ),
+			'require_login'  => isset( $_POST['require_login'] ) ? 1 : 0,
+			'webhook_url'    => sanitize_url( $_POST['webhook_url'] ),
+			'webhook_secret' => sanitize_text_field( $_POST['webhook_secret'] ),
 		);
 
 		if ( $quiz_id ) {
@@ -402,6 +437,62 @@ class Admin {
 		$data['position'] = $position + 1;
 
 		$wpdb->insert( "{$wpdb->prefix}pa_questions", $data );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
+		exit;
+	}
+
+	/**
+	 * Delete a question.
+	 */
+	public function delete_question() {
+		if ( ! isset( $_GET['action'] ) || 'delete_question' !== $_GET['action'] ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['question_id'] ) || ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( $_GET['_wpnonce'], 'pa_delete_question' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$question_id = intval( $_GET['question_id'] );
+		$quiz_id     = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
+
+		$wpdb->delete( "{$wpdb->prefix}pa_questions", array( 'id' => $question_id ) );
+		$wpdb->delete( "{$wpdb->prefix}pa_answers", array( 'question_id' => $question_id ) );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
+		exit;
+	}
+
+	/**
+	 * Delete an answer.
+	 */
+	public function delete_answer() {
+		if ( ! isset( $_GET['action'] ) || 'delete_answer' !== $_GET['action'] ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['answer_id'] ) || ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( $_GET['_wpnonce'], 'pa_delete_answer' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$answer_id   = intval( $_GET['answer_id'] );
+		$question_id = $wpdb->get_var( $wpdb->prepare( "SELECT question_id FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
+		$quiz_id     = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
+
+		$wpdb->delete( "{$wpdb->prefix}pa_answers", array( 'id' => $answer_id ) );
 
 		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
 		exit;

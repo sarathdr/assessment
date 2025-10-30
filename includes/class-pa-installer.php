@@ -47,6 +47,8 @@ class Installer {
 			status ENUM('draft','published') DEFAULT 'draft' NOT NULL,
 			require_login TINYINT(1) DEFAULT 1 NOT NULL,
 			settings LONGTEXT NULL,
+			webhook_url VARCHAR(255) NULL,
+			webhook_secret VARCHAR(255) NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			PRIMARY KEY  (id),
