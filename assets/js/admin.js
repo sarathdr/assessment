@@ -6,7 +6,7 @@
 			e.preventDefault();
 
 			var form = $( this ).closest( 'form' );
-			var data = form.serialize();
+			var data = form.serialize() + '&action=pa_add_answer';
 
 			$.ajax({
 				url: ajaxurl,

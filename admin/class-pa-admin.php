@@ -77,7 +77,7 @@ class Admin {
 			<p><strong><?php esc_html_e( 'Weight:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->weight ); ?></p>
 			<p><strong><?php esc_html_e( 'Label:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->personality_label ); ?></p>
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_answer&answer_id=' . $answer->id ) ); ?>" class="edit-answer"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
-			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete',. 'personality-assessment' ); ?></a>
+			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
 		</div>
 		<?php
 		$html = ob_get_clean();
