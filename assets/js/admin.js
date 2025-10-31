@@ -48,5 +48,24 @@
 				}
 			});
 		});
+
+		$( document ).on( 'submit', '.add-question-form', function( e ) {
+			e.preventDefault();
+
+			var form = $( this );
+			var data = form.serialize() + '&action=pa_add_question';
+
+			$.ajax({
+				url: ajaxurl,
+				type: 'POST',
+				data: data,
+				success: function( response ) {
+					if ( response.success ) {
+						$( '.questions-list' ).append( response.data.html );
+						form.find( 'input[type="text"], select' ).val( '' );
+					}
+				}
+			});
+		});
 	});
 })( jQuery );

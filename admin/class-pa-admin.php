@@ -36,6 +36,7 @@ class Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_ajax_pa_add_answer', array( $this, 'add_answer_ajax_handler' ) );
 		add_action( 'wp_ajax_pa_delete_answer', array( $this, 'delete_answer_ajax_handler' ) );
+		add_action( 'wp_ajax_pa_add_question', array( $this, 'add_question_ajax_handler' ) );
 	}
 
 	/**
@@ -100,6 +101,100 @@ class Admin {
 		$wpdb->delete( "{$wpdb->prefix}pa_answers", array( 'id' => $answer_id ) );
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX handler for adding a question.
+	 */
+	public function add_question_ajax_handler() {
+		if ( ! isset( $_POST['pa_save_question_nonce'] ) || ! wp_verify_nonce( $_POST['pa_save_question_nonce'], 'pa_save_question' ) ) {
+			wp_send_json_error( array( 'message' => 'Nonce verification failed.' ) );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => 'You do not have permission to do this.' ) );
+		}
+
+		global $wpdb;
+
+		$quiz_id = intval( $_POST['quiz_id'] );
+		$data    = array(
+			'title'       => sanitize_text_field( $_POST['question_title'] ),
+			'type'        => sanitize_text_field( $_POST['question_type'] ),
+			'is_required' => isset( $_POST['is_required'] ) ? 1 : 0,
+			'quiz_id'     => $quiz_id,
+		);
+
+		$position         = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $quiz_id ) );
+		$data['position'] = $position + 1;
+
+		$wpdb->insert( "{$wpdb->prefix}pa_questions", $data );
+		$question_id = $wpdb->insert_id;
+		$question    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
+
+		ob_start();
+		$this->render_question_item( $question );
+		$html = ob_get_clean();
+
+		wp_send_json_success( array( 'html' => $html ) );
+	}
+
+	/**
+	 * Render a single question item.
+	 */
+	public function render_question_item( $question ) {
+		global $wpdb;
+		?>
+		<div class="question-item">
+			<h3><?php echo esc_html( $question->title ); ?></h3>
+			<p><strong><?php esc_html_e( 'Type:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $question->type ); ?></p>
+			<p><strong><?php esc_html_e( 'Required:', 'personality-assessment' ); ?></strong> <?php echo $question->is_required ? esc_html__( 'Yes', 'personality-assessment' ) : esc_html__( 'No', 'personality-assessment' ); ?></p>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_question&question_id=' . $question->id ) ); ?>" class="edit-question"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
+			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_question&question_id=' . $question->id ), 'pa_delete_question' ) ); ?>" class="delete-question"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
+
+			<div class="answers-section">
+				<h4><?php esc_html_e( 'Answers', 'personality-assessment' ); ?></h4>
+				<div class="answers-list">
+					<?php
+					$answers = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE question_id = %d ORDER BY position ASC", $question->id ) );
+					if ( $answers ) {
+						foreach ( $answers as $answer ) {
+							?>
+							<div class="answer-item">
+								<p><?php echo esc_html( $answer->label ); ?></p>
+								<p><strong><?php esc_html_e( 'Weight:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->weight ); ?></p>
+								<p><strong><?php esc_html_e( 'Label:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->personality_label ); ?></p>
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_answer&answer_id=' . $answer->id ) ); ?>" class="edit-answer"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
+								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
+							</div>
+							<?php
+						}
+					}
+					?>
+				</div>
+				<form method="post" class="add-answer-form">
+					<input type="hidden" name="question_id" value="<?php echo esc_attr( $question->id ); ?>" />
+					<input type="hidden" name="action" value="save_answer" />
+					<?php wp_nonce_field( 'pa_save_answer', 'pa_save_answer_nonce' ); ?>
+					<div class="form-fields">
+						<div class="field">
+							<label for="answer_label"><?php esc_html_e( 'Label', 'personality-assessment' ); ?></label>
+							<input type="text" name="answer_label" id="answer_label" class="regular-text" />
+						</div>
+						<div class="field">
+							<label for="answer_weight"><?php esc_html_e( 'Weight', 'personality-assessment' ); ?></label>
+							<input type="number" name="answer_weight" id="answer_weight" class="small-text" step="0.1" />
+						</div>
+						<div class="field">
+							<label for="personality_label"><?php esc_html_e( 'Personality Label(s)', 'personality-assessment' ); ?></label>
+							<input type="text" name="personality_label" id="personality_label" class="regular-text" />
+						</div>
+					</div>
+					<?php submit_button( __( 'Add Answer', 'personality-assessment' ), 'primary', 'submit', false, array( 'class' => 'add-answer-submit-button' ) ); ?>
+				</form>
+			</div>
+		</div>
+		<?php
 	}
 
 	/**
@@ -340,67 +435,19 @@ class Admin {
 			<?php if ( $quiz_id ) : ?>
 				<div id="questions-section">
 					<h2><?php esc_html_e( 'Questions', 'personality-assessment' ); ?></h2>
-					<?php
-					$questions = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d ORDER BY position ASC", $quiz_id ) );
-					if ( $questions ) {
-						foreach ( $questions as $question ) {
-							?>
-							<div class="question-item">
-								<h3><?php echo esc_html( $question->title ); ?></h3>
-								<p><strong><?php esc_html_e( 'Type:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $question->type ); ?></p>
-								<p><strong><?php esc_html_e( 'Required:', 'personality-assessment' ); ?></strong> <?php echo $question->is_required ? esc_html__( 'Yes', 'personality-assessment' ) : esc_html__( 'No', 'personality-assessment' ); ?></p>
-								<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_question&question_id=' . $question->id ) ); ?>" class="edit-question"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
-								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_question&question_id=' . $question->id ), 'pa_delete_question' ) ); ?>" class="delete-question"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
-
-								<div class="answers-section">
-									<h4><?php esc_html_e( 'Answers', 'personality-assessment' ); ?></h4>
-									<div class="answers-list">
-										<?php
-										$answers = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE question_id = %d ORDER BY position ASC", $question->id ) );
-										if ( $answers ) {
-											foreach ( $answers as $answer ) {
-												?>
-												<div class="answer-item">
-													<p><?php echo esc_html( $answer->label ); ?></p>
-													<p><strong><?php esc_html_e( 'Weight:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->weight ); ?></p>
-													<p><strong><?php esc_html_e( 'Label:', 'personality-assessment' ); ?></strong> <?php echo esc_html( $answer->personality_label ); ?></p>
-													<a href="<?php echo esc_url( admin_url( 'admin.php?page=personality-assessment&action=edit_answer&answer_id=' . $answer->id ) ); ?>" class="edit-answer"><?php esc_html_e( 'Edit', 'personality-assessment' ); ?></a>
-													<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=personality-assessment&action=delete_answer&answer_id=' . $answer->id ), 'pa_delete_answer' ) ); ?>" class="delete-answer"><?php esc_html_e( 'Delete', 'personality-assessment' ); ?></a>
-												</div>
-												<?php
-											}
-										}
-										?>
-									</div>
-									<form method="post" class="add-answer-form">
-										<input type="hidden" name="question_id" value="<?php echo esc_attr( $question->id ); ?>" />
-										<input type="hidden" name="action" value="save_answer" />
-										<?php wp_nonce_field( 'pa_save_answer', 'pa_save_answer_nonce' ); ?>
-										<div class="form-fields">
-											<div class="field">
-												<label for="answer_label"><?php esc_html_e( 'Label', 'personality-assessment' ); ?></label>
-												<input type="text" name="answer_label" id="answer_label" class="regular-text" />
-											</div>
-											<div class="field">
-												<label for="answer_weight"><?php esc_html_e( 'Weight', 'personality-assessment' ); ?></label>
-												<input type="number" name="answer_weight" id="answer_weight" class="small-text" step="0.1" />
-											</div>
-											<div class="field">
-												<label for="personality_label"><?php esc_html_e( 'Personality Label(s)', 'personality-assessment' ); ?></label>
-												<input type="text" name="personality_label" id="personality_label" class="regular-text" />
-											</div>
-										</div>
-										<?php submit_button( __( 'Add Answer', 'personality-assessment' ), 'primary', 'submit', false, array( 'class' => 'add-answer-submit-button' ) ); ?>
-									</form>
-								</div>
-							</div>
-							<?php
+					<div class="questions-list">
+						<?php
+						$questions = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d ORDER BY position ASC", $quiz_id ) );
+						if ( $questions ) {
+							foreach ( $questions as $question ) {
+								$this->render_question_item( $question );
+							}
 						}
-					}
-					?>
+						?>
+					</div>
 					<hr>
 					<h3><?php esc_html_e( 'Add New Question', 'personality-assessment' ); ?></h3>
-					<form method="post">
+					<form method="post" class="add-question-form">
 						<input type="hidden" name="quiz_id" value="<?php echo esc_attr( $quiz_id ); ?>" />
 						<input type="hidden" name="action" value="save_question" />
 						<?php wp_nonce_field( 'pa_save_question', 'pa_save_question_nonce' ); ?>
@@ -524,6 +571,10 @@ class Admin {
 	 * Save the question.
 	 */
 	public function save_question() {
+		if ( wp_doing_ajax() ) {
+			return;
+		}
+
 		if ( ! isset( $_POST['action'] ) || 'save_question' !== $_POST['action'] ) {
 			return;
 		}
