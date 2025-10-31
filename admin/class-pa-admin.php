@@ -35,6 +35,7 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'create_quiz_and_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_ajax_pa_add_answer', array( $this, 'add_answer_ajax_handler' ) );
+		add_action( 'wp_ajax_pa_delete_answer', array( $this, 'delete_answer_ajax_handler' ) );
 	}
 
 	/**
@@ -79,6 +80,26 @@ class Admin {
 		$html = ob_get_clean();
 
 		wp_send_json_success( array( 'html' => $html ) );
+	}
+
+	/**
+	 * AJAX handler for deleting an answer.
+	 */
+	public function delete_answer_ajax_handler() {
+		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( $_POST['_wpnonce'], 'pa_delete_answer' ) ) {
+			wp_send_json_error( array( 'message' => 'Nonce verification failed.' ) );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => 'You do not have permission to do this.' ) );
+		}
+
+		global $wpdb;
+
+		$answer_id = intval( $_POST['answer_id'] );
+		$wpdb->delete( "{$wpdb->prefix}pa_answers", array( 'id' => $answer_id ) );
+
+		wp_send_json_success();
 	}
 
 	/**
@@ -572,6 +593,10 @@ class Admin {
 	 * Delete an answer.
 	 */
 	public function delete_answer() {
+		if ( wp_doing_ajax() ) {
+			return;
+		}
+
 		if ( ! isset( $_GET['action'] ) || 'delete_answer' !== $_GET['action'] ) {
 			return;
 		}

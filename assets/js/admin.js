@@ -20,5 +20,33 @@
 				}
 			});
 		});
+
+		$( document ).on( 'click', '.delete-answer', function( e ) {
+			e.preventDefault();
+
+			if ( ! confirm( 'Are you sure you want to delete this answer?' ) ) {
+				return;
+			}
+
+			var link = $( this );
+			var url = new URL( link.attr( 'href' ) );
+			var answerId = url.searchParams.get( 'answer_id' );
+			var nonce = url.searchParams.get( '_wpnonce' );
+
+			$.ajax({
+				url: ajaxurl,
+				type: 'POST',
+				data: {
+					action: 'pa_delete_answer',
+					answer_id: answerId,
+					_wpnonce: nonce
+				},
+				success: function( response ) {
+					if ( response.success ) {
+						link.closest( '.answer-item' ).remove();
+					}
+				}
+			});
+		});
 	});
 })( jQuery );
