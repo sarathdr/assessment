@@ -116,6 +116,7 @@ class Shortcode {
 									<?php foreach ( $answers as $answer ) : ?>
 										<label class="pa-answer">
 											<input type="radio" name="answers[<?php echo esc_attr( $question->id ); ?>]" value="<?php echo esc_attr( $answer->id ); ?>">
+											<span class="pa-control"></span>
 											<span><?php echo esc_html( $answer->label ); ?></span>
 										</label>
 									<?php endforeach; ?>
@@ -128,6 +129,7 @@ class Shortcode {
 									<?php foreach ( $answers as $answer ) : ?>
 										<label class="pa-answer">
 											<input type="checkbox" name="answers[<?php echo esc_attr( $question->id ); ?>][]" value="<?php echo esc_attr( $answer->id ); ?>">
+											<span class="pa-control"></span>
 											<span><?php echo esc_html( $answer->label ); ?></span>
 										</label>
 									<?php endforeach; ?>

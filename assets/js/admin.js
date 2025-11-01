@@ -47,6 +47,8 @@
 					}
 				}
 			});
+
+			return false;
 		});
 
 		$( document ).on( 'submit', '.add-question-form', function( e ) {

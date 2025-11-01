@@ -59,8 +59,67 @@
 
 .pa-answer input[type="radio"],
 .pa-answer input[type="checkbox"] {
-	margin-right: 16px;
+	opacity: 0;
+	position: absolute;
 }
+
+.pa-control {
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	border: 2px solid var(--md-primary-color);
+	margin-right: 16px;
+	position: relative;
+	transition: all 0.2s ease;
+}
+
+.pa-answer input[type="checkbox"] + .pa-control {
+	border-radius: 4px;
+}
+
+.pa-answer input[type="radio"]:checked + .pa-control,
+.pa-answer input[type="checkbox"]:checked + .pa-control {
+	background-color: var(--md-primary-color);
+	border-color: var(--md-primary-color);
+}
+
+.pa-control::after {
+	content: '';
+	position: absolute;
+	display: none;
+}
+
+.pa-answer input[type="radio"]:checked + .pa-control::after {
+	display: block;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--md-on-primary-color);
+}
+
+.pa-answer input[type="checkbox"]:checked + .pa-control::after {
+	display: block;
+	left: 6px;
+	top: 2px;
+	width: 5px;
+	height: 10px;
+	border: solid var(--md-on-primary-color);
+	border-width: 0 3px 3px 0;
+	transform: rotate(45deg);
+}
+
+.pa-answer:hover .pa-control {
+	background-color: rgba(98, 0, 238, 0.1);
+}
+
+.pa-answer input:focus + .pa-control {
+	box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.4);
+}
+
 
 .pa-answer span {
 	font-size: 16px;
