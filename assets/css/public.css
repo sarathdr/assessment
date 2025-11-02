@@ -1,5 +1,5 @@
 :root {
-	--md-primary-color: #6200ee;
+	--md-primary-color: #007AFF;
 	--md-secondary-color: #03dac6;
 	--md-surface-color: #ffffff;
 	--md-on-primary-color: #ffffff;
@@ -150,7 +150,7 @@
 .pa-prev-btn:hover,
 .pa-next-btn:hover,
 .pa-submit-btn:hover {
-	background-color: #3700b3;
+	background-color: #0056b3;
 }
 
 textarea {
