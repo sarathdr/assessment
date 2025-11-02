@@ -518,6 +518,19 @@ class Admin {
 							<?php esc_html_e( 'Add Question', 'personality-assessment' ); ?>
 						</button>
 
+						<div id="add-question-form-wrapper" style="display: none;">
+							<form method="post" id="add-question-form" class="pa-sidebar-form">
+								<input type="hidden" name="quiz_id" value="<?php echo esc_attr( $quiz_id ); ?>" />
+								<?php wp_nonce_field( 'pa_save_question', 'pa_save_question_nonce' ); ?>
+								<div class="form-field">
+									<label for="question_title"><?php esc_html_e( 'Title', 'personality-assessment' ); ?></label>
+									<input type="text" name="question_title" id="question_title" class="regular-text" />
+								</div>
+								<?php submit_button( __( 'Add Question', 'personality-assessment' ) ); ?>
+							</form>
+						</div>
+
+
 						<div class="question-settings-wrapper"  style="display: none;">
 							<form method="post" id="question-settings-form">
 								<div class="settings-fields">
@@ -547,26 +560,6 @@ class Admin {
 						</div>
 					</div>
 				</div>
-
-				<script type="text/template" id="tmpl-add-question-form">
-					<form method="post" class="add-question-form-modal">
-						<input type="hidden" name="quiz_id" value="<?php echo esc_attr( $quiz_id ); ?>" />
-						<?php wp_nonce_field( 'pa_save_question', 'pa_save_question_nonce' ); ?>
-						<table class="form-table">
-							<tbody>
-								<tr>
-									<th scope="row">
-										<label for="question_title"><?php esc_html_e( 'Title', 'personality-assessment' ); ?></label>
-									</th>
-									<td>
-										<input type="text" name="question_title" id="question_title" class="regular-text" />
-									</td>
-								</tr>
-							</tbody>
-						</table>
-						<?php submit_button( __( 'Add Question', 'personality-assessment' ) ); ?>
-					</form>
-				</script>
 			<?php endif; ?>
 		</div>
 		<?php

@@ -4,27 +4,15 @@
     $(function() {
         var frame;
 
-        // Add Question Modal
+        // Add Question Button
         $('#add-question-button').on('click', function(e) {
             e.preventDefault();
-
-            if ($('#pa-modal-backdrop').length) {
-                return;
-            }
-
-            var template = wp.template('add-question-form');
-            $('body').append('<div id="pa-modal-backdrop"></div>');
-            $('body').append('<div id="pa-modal-wrap"></div>');
-            $('#pa-modal-wrap').html(template());
-        });
-
-        // Close Modal
-        $(document).on('click', '#pa-modal-backdrop', function() {
-            $('#pa-modal-wrap, #pa-modal-backdrop').remove();
+            $('.question-settings-wrapper').hide();
+            $('#add-question-form-wrapper').show();
         });
 
         // Add Question AJAX
-        $(document).on('submit', '.add-question-form-modal', function(e) {
+        $('#add-question-form').on('submit', function(e) {
             e.preventDefault();
 
             var form = $(this);
@@ -37,7 +25,8 @@
                 success: function(response) {
                     if (response.success) {
                         $('.questions-list').append(response.data.html);
-                        $('#pa-modal-wrap, #pa-modal-backdrop').remove();
+                        $('#add-question-form-wrapper').hide();
+                        form[0].reset();
                     }
                 }
             });
@@ -84,6 +73,7 @@
                 return;
             }
 
+            $('#add-question-form-wrapper').hide();
             $('.question-item').removeClass('active');
             $this.addClass('active');
 
