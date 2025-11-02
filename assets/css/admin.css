@@ -16,11 +16,12 @@
 
 #pa-quiz-editor-sidebar {
     flex: 1;
-    background: #fff;
-    padding: 20px;
-    border-radius: 4px;
-    border: 1px solid #dcdcde;
     height: fit-content;
+}
+
+#pa-quiz-editor-sidebar #add-question-button {
+    width: 100%;
+    margin-bottom: 20px;
 }
 
 .questions-header {
@@ -96,8 +97,11 @@
     margin-top: 10px;
 }
 
-.question-settings-wrapper h3 {
-    margin-top: 0;
+.question-settings-wrapper {
+    background: #fff;
+    padding: 20px;
+    border-radius: 4px;
+    border: 1px solid #dcdcde;
 }
 
 .question-settings-wrapper .form-field {
@@ -107,11 +111,28 @@
 .question-settings-wrapper label {
     display: block;
     margin-bottom: 5px;
+    font-weight: bold;
 }
 
-.question-settings-wrapper select,
+.question-settings-wrapper select {
+    width: 100%;
+}
+
 .question-settings-wrapper input[type="checkbox"] {
-    margin-top: 5px;
+    margin-right: 5px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.form-actions .cancel-button {
+    color: #a00;
+    text-decoration: none;
 }
 
 #pa-modal-backdrop {

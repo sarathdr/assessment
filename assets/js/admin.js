@@ -43,9 +43,47 @@
             });
         });
 
+        // Edit Question Title
+        $(document).on('click', '.edit-question-title', function(e) {
+            e.preventDefault();
+            var $this = $(this);
+            var $title = $this.closest('.question-title-header').find('.question-title-text');
+            var currentTitle = $title.text();
+            var $input = $('<input type="text" class="question-title-input" value="' + currentTitle + '" />');
+            $title.replaceWith($input);
+            $input.focus();
+        });
+
+        $(document).on('blur', '.question-title-input', function() {
+            var $this = $(this);
+            var newTitle = $this.val();
+            var $questionItem = $this.closest('.question-item');
+            var questionId = $questionItem.data('question-id');
+            var nonce = $questionItem.find('[name^="pa_save_question_title_nonce"]').val();
+
+            var $title = $('<h3 class="question-title-text">' + newTitle + '</h3>');
+            $this.replaceWith($title);
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'pa_save_question_title',
+                    question_id: questionId,
+                    title: newTitle,
+                    pa_save_question_title_nonce: nonce
+                }
+            });
+        });
+
         // Select Question
         $(document).on('click', '.question-item', function() {
             var $this = $(this);
+
+            if ($this.hasClass('active')) {
+                return;
+            }
+
             $('.question-item').removeClass('active');
             $this.addClass('active');
 
@@ -57,8 +95,14 @@
             $('#setting_question_type').val(questionType);
             $('#setting_is_required').prop('checked', isRequired == 1);
 
-            $('.no-question-selected').hide();
-            $('.settings-fields').show();
+            $('.question-settings-wrapper').show();
+        });
+
+        // Cancel Edit
+        $(document).on('click', '.cancel-button', function(e) {
+            e.preventDefault();
+            $('.question-item').removeClass('active');
+            $('.question-settings-wrapper').hide();
         });
 
         // Save Question Settings
