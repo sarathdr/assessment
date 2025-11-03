@@ -81,7 +81,18 @@ class Results_List_Table extends \WP_List_Table {
 	 * Render the user column.
 	 */
 	public function column_user( $item ) {
-		return $item['user_name'] ? $item['user_name'] : __( 'Guest', 'personality-assessment' );
+		$user_display = $item['user_name'] ? esc_html( $item['user_name'] ) : __( 'Guest', 'personality-assessment' );
+
+		$actions = array(
+			'view' => sprintf(
+				'<a href="?page=%s&action=view&id=%s">%s</a>',
+				esc_attr( $_REQUEST['page'] ),
+				absint( $item['id'] ),
+				__( 'View', 'personality-assessment' )
+			),
+		);
+
+		return $user_display . $this->row_actions( $actions );
 	}
 
 	/**

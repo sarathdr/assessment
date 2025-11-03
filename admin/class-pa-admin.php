@@ -569,6 +569,22 @@ class Admin {
 	 * Render the results page.
 	 */
 	public function render_results_page() {
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
+
+		switch ( $action ) {
+			case 'view':
+				$this->render_result_details_page();
+				break;
+			default:
+				$this->render_results_list();
+				break;
+		}
+	}
+
+	/**
+	 * Render the results list.
+	 */
+	public function render_results_list() {
 		require_once PA_PLUGIN_DIR . 'admin/class-pa-results-list-table.php';
 		$list_table = new Results_List_Table();
 		$list_table->prepare_items();
@@ -581,6 +597,114 @@ class Admin {
 				$list_table->display();
 				?>
 			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the result details page.
+	 */
+	public function render_result_details_page() {
+		global $wpdb;
+
+		$result_id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
+
+		$result = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT r.*, q.title as quiz_title, u.display_name as user_name
+				FROM {$wpdb->prefix}pa_results r
+				LEFT JOIN {$wpdb->prefix}pa_quizzes q ON r.quiz_id = q.id
+				LEFT JOIN {$wpdb->users} u ON r.user_id = u.ID
+				WHERE r.id = %d",
+				$result_id
+			)
+		);
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Result Details', 'personality-assessment' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=pa-results' ) ); ?>" class="page-title-action"><?php esc_html_e( 'Back to Results', 'personality-assessment' ); ?></a>
+			<hr class="wp-header-end">
+			<?php if ( ! $result ) : ?>
+				<div class="notice notice-error"><p><?php esc_html_e( 'Invalid result specified.', 'personality-assessment' ); ?></p></div>
+				<?php
+				return;
+			endif;
+			?>
+
+			<table class="form-table">
+				<tbody>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Quiz', 'personality-assessment' ); ?></th>
+						<td><?php echo esc_html( $result->quiz_title ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'User', 'personality-assessment' ); ?></th>
+						<td><?php echo $result->user_name ? esc_html( $result->user_name ) : esc_html__( 'Guest', 'personality-assessment' ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Submitted At', 'personality-assessment' ); ?></th>
+						<td><?php echo esc_html( $result->submitted_at ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Dominant Label', 'personality-assessment' ); ?></th>
+						<td><?php echo esc_html( $result->dominant_label ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Total Score', 'personality-assessment' ); ?></th>
+						<td><?php echo esc_html( $result->score_total ); ?></td>
+					</tr>
+				</tbody>
+			</table>
+
+			<h2 style="margin-top: 2rem;"><?php esc_html_e( 'Submitted Answers', 'personality-assessment' ); ?></h2>
+			<div class="pa-result-answers">
+				<?php
+				$payload = json_decode( $result->raw_payload, true );
+				$answers = isset( $payload['answers'] ) ? $payload['answers'] : array();
+
+				if ( ! empty( $answers ) ) {
+					foreach ( $answers as $answer_data ) {
+						$question_id = absint( $answer_data['question_id'] );
+						$question    = $wpdb->get_row( $wpdb->prepare( "SELECT title, type FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
+
+						if ( ! $question ) {
+							continue;
+						}
+						?>
+						<div class="postbox">
+							<h3 class="hndle"><span><?php echo esc_html( $question->title ); ?></span></h3>
+							<div class="inside">
+								<?php
+								switch ( $question->type ) {
+									case 'text':
+										echo '<blockquote>' . esc_textarea( $answer_data['value'] ) . '</blockquote>';
+										break;
+									case 'single':
+									case 'multiple':
+										if ( ! empty( $answer_data['selected'] ) ) {
+											echo '<ul>';
+											foreach ( $answer_data['selected'] as $selected_answer ) {
+												printf(
+													'<li>%s</li>',
+													esc_html( $selected_answer['label'] )
+												);
+											}
+											echo '</ul>';
+										}
+										break;
+								}
+								?>
+							</div>
+						</div>
+						<?php
+					}
+				} else {
+					?>
+					<p><?php esc_html_e( 'No answers were submitted for this result.', 'personality-assessment' ); ?></p>
+					<?php
+				}
+				?>
+			</div>
 		</div>
 		<?php
 	}
