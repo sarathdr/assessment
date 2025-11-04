@@ -75,8 +75,7 @@ class Installer {
 			id BIGINT NOT NULL AUTO_INCREMENT,
 			question_id BIGINT NOT NULL,
 			label TEXT NOT NULL,
-			weight DECIMAL(10,2) DEFAULT 0 NOT NULL,
-			personality_label TEXT NULL,
+			label_weights LONGTEXT NULL,
 			position INT NOT NULL,
 			PRIMARY KEY  (id),
 			KEY question_id (question_id)
@@ -92,6 +91,7 @@ class Installer {
 			submitted_at DATETIME NOT NULL,
 			score_total DECIMAL(10,2) NOT NULL,
 			dominant_label VARCHAR(100) NULL,
+			label_scores LONGTEXT NULL,
 			raw_payload LONGTEXT NOT NULL,
 			is_locked TINYINT(1) DEFAULT 1 NOT NULL,
 			PRIMARY KEY  (id),
@@ -140,10 +140,10 @@ class Installer {
 			)
 		);
 		$q1_id = $wpdb->insert_id;
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Analyze all the data and facts before making a move.', 'weight' => 2.0, 'personality_label' => 'Analyst', 'position' => 1));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Consider how the solution will affect my team members.', 'weight' => 2.0, 'personality_label' => 'Diplomat', 'position' => 2));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Follow established procedures and proven methods.', 'weight' => 2.0, 'personality_label' => 'Sentinel', 'position' => 3));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Jump in and experiment with different solutions.', 'weight' => 2.0, 'personality_label' => 'Explorer', 'position' => 4));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Analyze all the data and facts before making a move.', 'label_weights' => '{"Analyst": 2.0}', 'position' => 1));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Consider how the solution will affect my team members.', 'label_weights' => '{"Diplomat": 2.0}', 'position' => 2));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Follow established procedures and proven methods.', 'label_weights' => '{"Sentinel": 2.0}', 'position' => 3));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q1_id, 'label' => 'Jump in and experiment with different solutions.', 'label_weights' => '{"Explorer": 2.0}', 'position' => 4));
 
 		// Question 2
 		$wpdb->insert(
@@ -157,10 +157,10 @@ class Installer {
 			)
 		);
 		$q2_id = $wpdb->insert_id;
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Organizing a detailed project plan.', 'weight' => 2.0, 'personality_label' => 'Sentinel', 'position' => 1));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Brainstorming new, unconventional ideas.', 'weight' => 2.0, 'personality_label' => 'Explorer', 'position' => 2));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Mediating a conflict between colleagues.', 'weight' => 2.0, 'personality_label' => 'Diplomat', 'position' => 3));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Solving a logical puzzle or debugging code.', 'weight' => 2.0, 'personality_label' => 'Analyst', 'position' => 4));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Organizing a detailed project plan.', 'label_weights' => '{"Sentinel": 2.0}', 'position' => 1));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Brainstorming new, unconventional ideas.', 'label_weights' => '{"Explorer": 2.0}', 'position' => 2));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Mediating a conflict between colleagues.', 'label_weights' => '{"Diplomat": 2.0}', 'position' => 3));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q2_id, 'label' => 'Solving a logical puzzle or debugging code.', 'label_weights' => '{"Analyst": 2.0}', 'position' => 4));
 
 		// Question 3
 		$wpdb->insert(
@@ -174,10 +174,10 @@ class Installer {
 			)
 		);
 		$q3_id = $wpdb->insert_id;
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'Direct, honest, and based on objective evidence.', 'weight' => 2.0, 'personality_label' => 'Analyst', 'position' => 1));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'Gentle, encouraging, and focused on personal growth.', 'weight' => 2.0, 'personality_label' => 'Diplomat', 'position' => 2));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'As part of a structured performance review.', 'weight' => 2.0, 'personality_label' => 'Sentinel', 'position' => 3));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'Informally, as part of an ongoing conversation.', 'weight' => 2.0, 'personality_label' => 'Explorer', 'position' => 4));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'Direct, honest, and based on objective evidence.', 'label_weights' => '{"Analyst": 2.0}', 'position' => 1));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'Gentle, encouraging, and focused on personal growth.', 'label_weights' => '{"Diplomat": 2.0}', 'position' => 2));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'As part of a structured performance review.', 'label_weights' => '{"Sentinel": 2.0}', 'position' => 3));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q3_id, 'label' => 'Informally, as part of an ongoing conversation.', 'label_weights' => '{"Explorer": 2.0}', 'position' => 4));
 
 		// Question 4
 		$wpdb->insert(
@@ -191,10 +191,10 @@ class Installer {
 			)
 		);
 		$q4_id = $wpdb->insert_id;
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I am naturally curious and question assumptions.', 'weight' => 1.0, 'personality_label' => 'Analyst', 'position' => 1));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I am adaptable and embrace change.', 'weight' => 1.0, 'personality_label' => 'Explorer', 'position' => 2));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I value harmony and cooperation in a team.', 'weight' => 1.0, 'personality_label' => 'Diplomat', 'position' => 3));
-		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I am reliable and detail-oriented.', 'weight' => 1.0, 'personality_label' => 'Sentinel', 'position' => 4));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I am naturally curious and question assumptions.', 'label_weights' => '{"Analyst": 1.0}', 'position' => 1));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I am adaptable and embrace change.', 'label_weights' => '{"Explorer": 1.0}', 'position' => 2));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I value harmony and cooperation in a team.', 'label_weights' => '{"Diplomat": 1.0}', 'position' => 3));
+		$wpdb->insert("{$wpdb->prefix}pa_answers", array('question_id' => $q4_id, 'label' => 'I am reliable and detail-oriented.', 'label_weights' => '{"Sentinel": 1.0}', 'position' => 4));
 
 		// Question 5
 		$wpdb->insert(

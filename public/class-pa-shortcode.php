@@ -171,6 +171,7 @@ class Shortcode {
 			'submitted_at'   => current_time( 'mysql' ),
 			'score_total'    => $score_data['score_total'],
 			'dominant_label' => $score_data['dominant_label'],
+			'label_scores'   => wp_json_encode( $score_data['label_scores'] ),
 			'raw_payload'    => wp_json_encode( $score_data['raw_payload'] ),
 		);
 

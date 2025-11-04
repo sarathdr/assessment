@@ -149,18 +149,47 @@
             });
         });
 
+        // Add Label
+        $(document).on('click', '.add-label-button', function(e) {
+            e.preventDefault();
+            var $this = $(this);
+            var $wrapper = $this.siblings('.label-weights-wrapper');
+            var $newItem = $('<div class="label-weight-item">' +
+                '<input type="text" class="answer-personality-label-input" value="" placeholder="Label" />' +
+                '<input type="number" class="answer-weight-input" value="0" placeholder="Weight" />' +
+                '<button class="button delete-label-button"><span class="dashicons dashicons-trash"></span></button>' +
+                '</div>');
+            $wrapper.append($newItem);
+        });
+
+        // Delete Label
+        $(document).on('click', '.delete-label-button', function(e) {
+            e.preventDefault();
+            $(this).closest('.label-weight-item').remove();
+            // Trigger blur to save the changes after deleting a label
+            $(this).closest('.answer-item').find('input').first().trigger('blur');
+        });
+
         // Save Answer Details
         $(document).on('blur', '.answer-item input', function() {
             var $this = $(this);
             var $answerItem = $this.closest('.answer-item');
             var answerId = $answerItem.data('answer-id');
 
+            var labelWeights = {};
+            $answerItem.find('.label-weight-item').each(function() {
+                var label = $(this).find('.answer-personality-label-input').val();
+                var weight = $(this).find('.answer-weight-input').val();
+                if (label) {
+                    labelWeights[label] = weight;
+                }
+            });
+
             var data = {
                 action: 'pa_save_answer_details',
                 answer_id: answerId,
                 label: $answerItem.find('.answer-label-input').val(),
-                weight: $answerItem.find('.answer-weight-input').val(),
-                personality_label: $answerItem.find('.answer-personality-label-input').val(),
+                label_weights: JSON.stringify(labelWeights),
                 pa_save_answer_details_nonce: $('#pa_save_answer_details_nonce').val()
             };
 

@@ -52,25 +52,21 @@ class Scoring {
 				foreach ( $answer_ids as $answer_id ) {
 					$answer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_answers WHERE id = %d", $answer_id ) );
 					if ( $answer ) {
-						$score_total += $answer->weight;
-						$labels       = array_map( 'trim', explode( ',', $answer->personality_label ) );
-						$label_count  = count( $labels );
-
-						if ( $label_count > 0 && ! empty( $labels[0] ) ) {
-							$weight_per_label = $answer->weight / $label_count;
-							foreach ( $labels as $label ) {
+						$label_weights = json_decode( $answer->label_weights, true );
+						if ( is_array( $label_weights ) ) {
+							foreach ( $label_weights as $label => $weight ) {
 								if ( ! isset( $label_totals[ $label ] ) ) {
 									$label_totals[ $label ] = 0;
 								}
-								$label_totals[ $label ] += $weight_per_label;
+								$label_totals[ $label ] += floatval( $weight );
+								$score_total += floatval( $weight );
 							}
 						}
 
 						$selected_answers[] = array(
-							'answer_id'         => $answer->id,
-							'label'             => $answer->label,
-							'weight'            => $answer->weight,
-							'personality_label' => $answer->personality_label,
+							'answer_id'     => $answer->id,
+							'label'         => $answer->label,
+							'label_weights' => $answer->label_weights,
 						);
 					}
 				}
@@ -81,25 +77,14 @@ class Scoring {
 
 		$dominant_label = '';
 		if ( ! empty( $label_totals ) ) {
-			// Sort by value descending, then by key ascending
-			uksort(
-				$label_totals,
-				function ( $a, $b ) use ( $label_totals ) {
-					if ( $label_totals[ $a ] > $label_totals[ $b ] ) {
-						return -1;
-					} elseif ( $label_totals[ $a ] < $label_totals[ $b ] ) {
-						return 1;
-					} else {
-						return strcmp( $a, $b );
-					}
-				}
-			);
+			arsort( $label_totals );
 			$dominant_label = key( $label_totals );
 		}
 
 		return array(
 			'score_total'    => $score_total,
 			'dominant_label' => $dominant_label,
+			'label_scores'   => $label_totals,
 			'raw_payload'    => array( 'answers' => $raw_payload_answers ),
 		);
 	}

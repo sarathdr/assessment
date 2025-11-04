@@ -40,6 +40,81 @@ class Admin {
 		add_action( 'wp_ajax_pa_save_question_details', array( $this, 'save_question_details_ajax_handler' ) );
 		add_action( 'wp_ajax_pa_save_answer_details', array( $this, 'save_answer_details_ajax_handler' ) );
 		add_action( 'wp_ajax_pa_save_question_title', array( $this, 'save_question_title_ajax_handler' ) );
+		add_action( 'admin_init', array( $this, 'export_results_csv' ) );
+	}
+
+	/**
+	 * Export results to CSV
+	 */
+	public function export_results_csv() {
+		if ( ! isset( $_POST['action'] ) || 'export_results_csv' !== $_POST['action'] ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
+
+		if ( ! $quiz_id ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_results WHERE quiz_id = %d", $quiz_id ) );
+
+		if ( ! $results ) {
+			return;
+		}
+
+		$filename = 'quiz-results-' . $quiz_id . '-' . date( 'Y-m-d' ) . '.csv';
+
+		header( 'Content-Type: text/csv' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+
+		$output = fopen( 'php://output', 'w' );
+
+		// Get all possible labels from the results
+		$all_labels = array();
+		foreach ( $results as $result ) {
+			$label_scores = json_decode( $result->label_scores, true );
+			if ( is_array( $label_scores ) ) {
+				foreach ( $label_scores as $label => $score ) {
+					if ( ! in_array( $label, $all_labels ) ) {
+						$all_labels[] = $label;
+					}
+				}
+			}
+		}
+		sort( $all_labels );
+
+		// Header row
+		$header = array( 'user_id', 'submitted_at', 'score_total', 'dominant_label' );
+		$header = array_merge( $header, $all_labels );
+		fputcsv( $output, $header );
+
+		// Data rows
+		foreach ( $results as $result ) {
+			$row          = array(
+				$result->user_id,
+				$result->submitted_at,
+				$result->score_total,
+				$result->dominant_label,
+			);
+			$label_scores = json_decode( $result->label_scores, true );
+			if ( ! is_array( $label_scores ) ) {
+				$label_scores = array();
+			}
+			foreach ( $all_labels as $label ) {
+				$row[] = isset( $label_scores[ $label ] ) ? $label_scores[ $label ] : 0;
+			}
+			fputcsv( $output, $row );
+		}
+
+		fclose( $output );
+		exit;
 	}
 
 	/**
@@ -58,10 +133,9 @@ class Admin {
 
 		$question_id = intval( $_POST['question_id'] );
 		$data        = array(
-			'label'             => '',
-			'weight'            => 0,
-			'personality_label' => '',
-			'question_id'       => $question_id,
+			'label'         => '',
+			'label_weights' => '[]',
+			'question_id'   => $question_id,
 		);
 
 		$position         = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_answers WHERE question_id = %d", $question_id ) );
@@ -76,8 +150,9 @@ class Admin {
 		<div class="answer-item" data-answer-id="<?php echo esc_attr( $answer->id ); ?>">
 			<span class="dashicons dashicons-menu handle"></span>
 			<input type="text" class="answer-label-input" value="" placeholder="<?php esc_attr_e( 'Answer Label', 'personality-assessment' ); ?>" />
-			<input type="number" class="answer-weight-input" value="0" placeholder="<?php esc_attr_e( 'Weight', 'personality-assessment' ); ?>" />
-			<input type="text" class="answer-personality-label-input" value="" placeholder="<?php esc_attr_e( 'Personality Label', 'personality-assessment' ); ?>" />
+			<div class="label-weights-wrapper">
+			</div>
+			<button class="button add-label-button"><?php esc_html_e( 'Add Label', 'personality-assessment' ); ?></button>
 			<button class="button delete-answer-button" data-answer-id="<?php echo esc_attr( $answer->id ); ?>" data-nonce="<?php echo esc_attr( wp_create_nonce( 'pa_delete_answer_' . $answer->id ) ); ?>"><span class="dashicons dashicons-trash"></span></button>
 		</div>
 		<?php
@@ -124,10 +199,17 @@ class Admin {
 
 		$answer_id = intval( $_POST['answer_id'] );
 
+		$label_weights = isset( $_POST['label_weights'] ) ? json_decode( stripslashes( $_POST['label_weights'] ), true ) : array();
+		$sanitized_label_weights = array();
+		if ( is_array( $label_weights ) ) {
+			foreach ( $label_weights as $label => $weight ) {
+				$sanitized_label_weights[ sanitize_text_field( $label ) ] = floatval( $weight );
+			}
+		}
+
 		$data = array(
-			'label'             => sanitize_text_field( $_POST['label'] ),
-			'weight'            => floatval( $_POST['weight'] ),
-			'personality_label' => sanitize_text_field( $_POST['personality_label'] ),
+			'label'         => sanitize_text_field( $_POST['label'] ),
+			'label_weights' => wp_json_encode( $sanitized_label_weights ),
 		);
 
 		$wpdb->update( "{$wpdb->prefix}pa_answers", $data, array( 'id' => $answer_id ) );
@@ -251,8 +333,23 @@ class Admin {
 							<div class="answer-item" data-answer-id="<?php echo esc_attr( $answer->id ); ?>">
 								<span class="dashicons dashicons-menu handle"></span>
 								<input type="text" class="answer-label-input" value="<?php echo esc_attr( $answer->label ); ?>" />
-								<input type="number" class="answer-weight-input" value="<?php echo esc_attr( $answer->weight ); ?>" placeholder="<?php esc_attr_e( 'Weight', 'personality-assessment' ); ?>" />
-								<input type="text" class="answer-personality-label-input" value="<?php echo esc_attr( $answer->personality_label ); ?>" placeholder="<?php esc_attr_e( 'Label', 'personality-assessment' ); ?>" />
+								<div class="label-weights-wrapper">
+									<?php
+									$label_weights = json_decode( $answer->label_weights, true );
+									if ( is_array( $label_weights ) ) {
+										foreach ( $label_weights as $label => $weight ) {
+											?>
+											<div class="label-weight-item">
+												<input type="text" class="answer-personality-label-input" value="<?php echo esc_attr( $label ); ?>" placeholder="<?php esc_attr_e( 'Label', 'personality-assessment' ); ?>" />
+												<input type="number" class="answer-weight-input" value="<?php echo esc_attr( $weight ); ?>" placeholder="<?php esc_attr_e( 'Weight', 'personality-assessment' ); ?>" />
+												<button class="button delete-label-button"><span class="dashicons dashicons-trash"></span></button>
+											</div>
+											<?php
+										}
+									}
+									?>
+								</div>
+								<button class="button add-label-button"><?php esc_html_e( 'Add Label', 'personality-assessment' ); ?></button>
 								<button class="button delete-answer-button" data-answer-id="<?php echo esc_attr( $answer->id ); ?>" data-nonce="<?php echo esc_attr( wp_create_nonce( 'pa_delete_answer_' . $answer->id ) ); ?>"><span class="dashicons dashicons-trash"></span></button>
 							</div>
 							<?php
@@ -592,6 +689,22 @@ class Admin {
 		<div class="wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Results', 'personality-assessment' ); ?></h1>
 			<hr class="wp-header-end">
+
+			<form method="post" action="">
+				<input type="hidden" name="action" value="export_results_csv">
+				<?php
+				global $wpdb;
+				$quizzes = $wpdb->get_results( "SELECT id, title FROM {$wpdb->prefix}pa_quizzes" );
+				?>
+				<select name="quiz_id">
+					<option value=""><?php esc_html_e( 'Select a Quiz', 'personality-assessment' ); ?></option>
+					<?php foreach ( $quizzes as $quiz ) : ?>
+						<option value="<?php echo esc_attr( $quiz->id ); ?>"><?php echo esc_html( $quiz->title ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<?php submit_button( __( 'Export to CSV', 'personality-assessment' ), 'primary', 'export_results' ); ?>
+			</form>
+
 			<form method="post">
 				<?php
 				$list_table->display();
@@ -653,6 +766,31 @@ class Admin {
 						<th scope="row"><?php esc_html_e( 'Total Score', 'personality-assessment' ); ?></th>
 						<td><?php echo esc_html( $result->score_total ); ?></td>
 					</tr>
+				</tbody>
+			</table>
+
+			<h2 style="margin-top: 2rem;"><?php esc_html_e( 'Label Scores', 'personality-assessment' ); ?></h2>
+			<table class="wp-list-table widefat fixed striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Label', 'personality-assessment' ); ?></th>
+						<th><?php esc_html_e( 'Score', 'personality-assessment' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php
+					$label_scores = json_decode( $result->label_scores, true );
+					if ( is_array( $label_scores ) ) {
+						foreach ( $label_scores as $label => $score ) {
+							?>
+							<tr>
+								<td><?php echo esc_html( $label ); ?></td>
+								<td><?php echo esc_html( $score ); ?></td>
+							</tr>
+							<?php
+						}
+					}
+					?>
 				</tbody>
 			</table>
 
