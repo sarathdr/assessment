@@ -72,9 +72,17 @@
 
 .answer-item {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.answer-item .answer-label-input {
+    min-width: 200px;
+    flex-shrink: 0;
 }
 
 .answer-item .handle {
@@ -97,6 +105,11 @@
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.label-weight-item .answer-weight-input {
+    width: 80px;
+    flex-shrink: 0;
 }
 
 .add-label-button {
