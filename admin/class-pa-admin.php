@@ -41,6 +41,33 @@ class Admin {
 		add_action( 'wp_ajax_pa_save_answer_details', array( $this, 'save_answer_details_ajax_handler' ) );
 		add_action( 'wp_ajax_pa_save_question_title', array( $this, 'save_question_title_ajax_handler' ) );
 		add_action( 'admin_init', array( $this, 'export_results_csv' ) );
+		add_action( 'admin_notices', array( $this, 'show_admin_notices' ) );
+	}
+
+	/**
+	 * Show admin notices.
+	 */
+	public function show_admin_notices() {
+		if ( ! isset( $_GET['pa-export-error'] ) ) {
+			return;
+		}
+
+		$error_code = sanitize_key( $_GET['pa-export-error'] );
+		$message    = '';
+
+		if ( '1' === $error_code ) {
+			$message = __( 'Please select a quiz to export results.', 'personality-assessment' );
+		} elseif ( '2' === $error_code ) {
+			$message = __( 'The selected quiz has no results to export.', 'personality-assessment' );
+		}
+
+		if ( $message ) {
+			?>
+			<div class="notice notice-error is-dismissible">
+				<p><?php echo esc_html( $message ); ?></p>
+			</div>
+			<?php
+		}
 	}
 
 	/**
@@ -58,7 +85,8 @@ class Admin {
 		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
 
 		if ( ! $quiz_id ) {
-			return;
+			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '1' ), admin_url( 'admin.php?page=pa-results' ) ) );
+			exit;
 		}
 
 		global $wpdb;
@@ -66,7 +94,8 @@ class Admin {
 		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_results WHERE quiz_id = %d", $quiz_id ) );
 
 		if ( ! $results ) {
-			return;
+			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '2' ), admin_url( 'admin.php?page=pa-results' ) ) );
+			exit;
 		}
 
 		$filename = 'quiz-results-' . $quiz_id . '-' . date( 'Y-m-d' ) . '.csv';
