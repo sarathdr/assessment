@@ -195,10 +195,38 @@ class Shortcode {
 			);
 		}
 
+		$summary_html    = $this->render_results_summary( $score_data['label_scores'] );
+		$success_message = str_replace( '[pa_results_summary]', $summary_html, $quiz->success_message );
+
 		wp_send_json_success(
 			array(
-				'success_message' => do_shortcode( $quiz->success_message ),
+				'success_message' => do_shortcode( $success_message ),
 			)
 		);
+	}
+
+	/**
+	 * Render the results summary HTML.
+	 *
+	 * @param array $label_scores The label scores.
+	 * @return string The HTML.
+	 */
+	public function render_results_summary( $label_scores ) {
+		if ( empty( $label_scores ) ) {
+			return '';
+		}
+
+		ob_start();
+		?>
+		<div class="pa-results-summary">
+			<h3><?php esc_html_e( 'Your Results:', 'personality-assessment' ); ?></h3>
+			<ul>
+				<?php foreach ( $label_scores as $label => $score ) : ?>
+					<li><strong><?php echo esc_html( $label ); ?>:</strong> <?php echo esc_html( $score ); ?></li>
+				<?php endforeach; ?>
+			</ul>
+		</div>
+		<?php
+		return ob_get_clean();
 	}
 }

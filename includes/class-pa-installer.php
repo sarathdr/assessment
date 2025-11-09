@@ -118,11 +118,12 @@ class Installer {
 		$wpdb->insert(
 			"{$wpdb->prefix}pa_quizzes",
 			array(
-				'title'       => 'Work Style Finder',
-				'slug'        => 'work-style-finder',
-				'description' => 'Discover your dominant work style and how you can leverage it.',
-				'status'      => 'published',
-				'require_login' => 0,
+				'title'           => 'Work Style Finder',
+				'slug'            => 'work-style-finder',
+				'description'     => 'Discover your dominant work style and how you can leverage it.',
+				'status'          => 'published',
+				'require_login'   => 0,
+				'success_message' => '<h2>' . __( 'Quiz Complete!', 'personality-assessment' ) . '</h2><p>' . __( 'Thank you for completing the quiz. Here are your results:', 'personality-assessment' ) . '</p>[pa_results_summary]',
 			)
 		);
 		$quiz_id = $wpdb->insert_id;
