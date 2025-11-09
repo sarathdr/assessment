@@ -1178,7 +1178,7 @@ class Admin {
 				exit;
 			}
 
-			$file_name = sanitize_file_name( $_FILES['pa_quiz_csv']['name'] );
+			$file_name  = sanitize_file_name( $_FILES['pa_quiz_csv']['name'] );
 			$quiz_title = str_replace( '.csv', '', $file_name );
 
 			global $wpdb;
@@ -1196,7 +1196,7 @@ class Admin {
 
 			// Process the CSV.
 			if ( ( $handle = fopen( $file, 'r' ) ) !== false ) {
-				$header = fgetcsv( $handle ); // Skip header row.
+				$header            = fgetcsv( $handle ); // Skip header row.
 				$question_position = 1;
 
 				while ( ( $row = fgetcsv( $handle ) ) !== false ) {
@@ -1217,25 +1217,37 @@ class Admin {
 					);
 					$question_id = $wpdb->insert_id;
 
-					// Process answers from 'Option A', 'Option B', etc.
-					$answer_options = array_slice( $row, 1, 4 );
-					$course_labels  = array( 'course_1', 'course_2', 'course_3', 'course_4' );
+					// Process answers from subsequent columns.
+					$answer_options  = array_slice( $row, 1 );
 					$answer_position = 1;
 
-					foreach ( $answer_options as $index => $answer_label ) {
-						if ( empty( $answer_label ) ) {
+					foreach ( $answer_options as $answer_cell ) {
+						if ( empty( $answer_cell ) ) {
 							continue;
 						}
 
-						$label_weights = array(
-							$course_labels[ $index ] => 1.0,
-						);
+						$answer_label  = sanitize_text_field( $answer_cell );
+						$label_weights = array();
+
+						if ( 'None' !== $answer_label ) {
+							$pairs = explode( ';', $answer_label );
+							foreach ( $pairs as $pair ) {
+								$parts = explode( ':', $pair );
+								if ( 2 === count( $parts ) ) {
+									$label = trim( $parts[0] );
+									$weight = trim( $parts[1] );
+									if ( ! empty( $label ) ) {
+										$label_weights[ $label ] = floatval( $weight );
+									}
+								}
+							}
+						}
 
 						$wpdb->insert(
 							"{$wpdb->prefix}pa_answers",
 							array(
 								'question_id'   => $question_id,
-								'label'         => sanitize_text_field( $answer_label ),
+								'label'         => $answer_label,
 								'label_weights' => wp_json_encode( $label_weights ),
 								'position'      => $answer_position++,
 							)

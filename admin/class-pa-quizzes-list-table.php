@@ -12,17 +12,12 @@
 
 namespace PA\Admin;
 
-// Exit if accessed directly.
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-
 if ( ! class_exists( 'WP_List_Table' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
 /**
- * The list table for quizzes.
+ * The quizzes list table.
  */
 class Quizzes_List_Table extends \WP_List_Table {
 
@@ -40,68 +35,67 @@ class Quizzes_List_Table extends \WP_List_Table {
 	}
 
 	/**
-	 * Get the column definitions.
+	 * Get the columns.
 	 */
 	public function get_columns() {
 		return array(
-			'cb'            => '<input type="checkbox" />',
-			'title'         => __( 'Title', 'personality-assessment' ),
-			'status'        => __( 'Status', 'personality-assessment' ),
-			'require_login' => __( 'Requires Login', 'personality-assessment' ),
-			'shortcode'     => __( 'Shortcode', 'personality-assessment' ),
-			'created_at'    => __( 'Created At', 'personality-assessment' ),
-			'updated_at'    => __( 'Updated At', 'personality-assessment' ),
+			'cb'        => '<input type="checkbox" />',
+			'title'     => __( 'Title', 'personality-assessment' ),
+			'shortcode' => __( 'Shortcode', 'personality-assessment' ),
+			'questions' => __( 'Questions', 'personality-assessment' ),
 		);
 	}
 
 	/**
-	 * Prepare the items for the table.
+	 * Prepare the items.
 	 */
 	public function prepare_items() {
 		global $wpdb;
 
 		$this->_column_headers = array( $this->get_columns(), array(), $this->get_sortable_columns() );
-
-		$this->items = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}pa_quizzes", ARRAY_A );
+		$this->items           = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}pa_quizzes" );
 	}
 
 	/**
-	 * Render the checkbox column.
+	 * The checkbox column.
 	 */
 	public function column_cb( $item ) {
-		return sprintf( '<input type="checkbox" name="quiz[]" value="%s" />', $item['id'] );
+		return sprintf( '<input type="checkbox" name="quiz[]" value="%s" />', $item->id );
 	}
 
 	/**
-	 * Render the title column.
+	 * The title column.
 	 */
 	public function column_title( $item ) {
-		$delete_nonce = wp_create_nonce( 'pa_delete_quiz' );
-		$actions      = array(
-			'edit'   => sprintf( '<a href="?page=personality-assessment&action=edit&id=%s">%s</a>', $item['id'], __( 'Edit', 'personality-assessment' ) ),
-			'delete' => sprintf(
-				'<a href="?page=%s&action=delete_quiz&id=%s&_wpnonce=%s" class="pa-delete-quiz">%s</a>',
-				esc_attr( $_REQUEST['page'] ),
-				absint( $item['id'] ),
-				$delete_nonce,
-				__( 'Delete', 'personality-assessment' )
-			),
+		$actions = array(
+			'edit'   => sprintf( '<a href="?page=%s&action=%s&id=%s">' . __( 'Edit', 'personality-assessment' ) . '</a>', $_REQUEST['page'], 'edit', $item->id ),
+			'delete' => sprintf( '<a href="?page=%s&action=%s&id=%s&_wpnonce=%s">' . __( 'Delete', 'personality-assessment' ) . '</a>', $_REQUEST['page'], 'delete_quiz', $item->id, wp_create_nonce( 'pa_delete_quiz' ) ),
 		);
-
-		return sprintf( '%1$s %2$s', $item['title'], $this->row_actions( $actions ) );
+		return sprintf( '%1$s %2$s', $item->title, $this->row_actions( $actions ) );
 	}
 
 	/**
-	 * Render the shortcode column.
+	 * The shortcode column.
 	 */
 	public function column_shortcode( $item ) {
-		return sprintf( '[pa_quiz id="%s"]', $item['id'] );
+		return sprintf( '[pa_quiz id="%s"]', $item->id );
 	}
 
 	/**
-	 * Render the default column.
+	 * The questions column.
 	 */
-	public function column_default( $item, $column_name ) {
-		return $item[ $column_name ];
+	public function column_questions( $item ) {
+		global $wpdb;
+
+		return $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $item->id ) );
+	}
+
+	/**
+	 * Get the sortable columns.
+	 */
+	protected function get_sortable_columns() {
+		return array(
+			'title' => array( 'title', false ),
+		);
 	}
 }
