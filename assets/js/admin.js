@@ -232,7 +232,7 @@
         });
 
         // Delete Quiz Confirmation
-        $('.pa-delete-quiz').on('click', function(e) {
+        $(document).on('click', '.pa-delete-quiz', function(e) {
             if ( ! confirm( 'Are you sure you want to delete this quiz and all its results? This action cannot be undone.' ) ) {
                 e.preventDefault();
             }
