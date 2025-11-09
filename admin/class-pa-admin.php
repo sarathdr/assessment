@@ -32,6 +32,7 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'save_answer' ) );
 		add_action( 'admin_init', array( $this, 'delete_question' ) );
 		add_action( 'admin_init', array( $this, 'delete_answer' ) );
+		add_action( 'admin_init', array( $this, 'delete_quiz' ) );
 		add_action( 'admin_init', array( $this, 'create_quiz_and_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_ajax_pa_add_answer', array( $this, 'add_answer_ajax_handler' ) );
@@ -1081,6 +1082,43 @@ class Admin {
 		$quiz_id = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
 
 		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
+		exit;
+	}
+
+	/**
+	 * Delete a quiz.
+	 */
+	public function delete_quiz() {
+		if ( ! isset( $_GET['action'] ) || 'delete_quiz' !== $_GET['action'] ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['id'] ) || ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( $_GET['_wpnonce'], 'pa_delete_quiz' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$quiz_id = intval( $_GET['id'] );
+
+		// Delete quiz
+		$wpdb->delete( "{$wpdb->prefix}pa_quizzes", array( 'id' => $quiz_id ) );
+
+		// Delete results
+		$wpdb->delete( "{$wpdb->prefix}pa_results", array( 'quiz_id' => $quiz_id ) );
+
+		// Delete questions and answers
+		$questions = $wpdb->get_results( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $quiz_id ) );
+		foreach ( $questions as $question ) {
+			$wpdb->delete( "{$wpdb->prefix}pa_answers", array( 'question_id' => $question->id ) );
+		}
+		$wpdb->delete( "{$wpdb->prefix}pa_questions", array( 'quiz_id' => $quiz_id ) );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment' ) );
 		exit;
 	}
 }
