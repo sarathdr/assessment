@@ -33,6 +33,7 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'delete_question' ) );
 		add_action( 'admin_init', array( $this, 'delete_answer' ) );
 		add_action( 'admin_init', array( $this, 'delete_quiz' ) );
+		add_action( 'admin_init', array( $this, 'import_quiz_from_csv' ) );
 		add_action( 'admin_init', array( $this, 'create_quiz_and_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_ajax_pa_add_answer', array( $this, 'add_answer_ajax_handler' ) );
@@ -49,23 +50,40 @@ class Admin {
 	 * Show admin notices.
 	 */
 	public function show_admin_notices() {
-		if ( ! isset( $_GET['pa-export-error'] ) ) {
-			return;
+		$success_message = '';
+		$error_message   = '';
+
+		if ( isset( $_GET['pa-import-success'] ) ) {
+			$success_message = __( 'Quiz imported successfully.', 'personality-assessment' );
 		}
 
-		$error_code = sanitize_key( $_GET['pa-export-error'] );
-		$message    = '';
-
-		if ( '1' === $error_code ) {
-			$message = __( 'Please select a quiz to export results.', 'personality-assessment' );
-		} elseif ( '2' === $error_code ) {
-			$message = __( 'The selected quiz has no results to export.', 'personality-assessment' );
+		if ( isset( $_GET['pa-import-error'] ) ) {
+			$error_code = sanitize_key( $_GET['pa-import-error'] );
+			switch ( $error_code ) {
+				case '1':
+					$error_message = __( 'File upload failed.', 'personality-assessment' );
+					break;
+				case '2':
+					$error_message = __( 'No file was uploaded or there was an upload error.', 'personality-assessment' );
+					break;
+				default:
+					$error_message = __( 'An unknown error occurred during import.', 'personality-assessment' );
+					break;
+			}
 		}
 
-		if ( $message ) {
+		if ( $success_message ) {
+			?>
+			<div class="notice notice-success is-dismissible">
+				<p><?php echo esc_html( $success_message ); ?></p>
+			</div>
+			<?php
+		}
+
+		if ( $error_message ) {
 			?>
 			<div class="notice notice-error is-dismissible">
-				<p><?php echo esc_html( $message ); ?></p>
+				<p><?php echo esc_html( $error_message ); ?></p>
 			</div>
 			<?php
 		}
@@ -86,8 +104,7 @@ class Admin {
 		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
 
 		if ( ! $quiz_id ) {
-			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '1' ), admin_url( 'admin.php?page=pa-results' ) ) );
-			exit;
+			return;
 		}
 
 		global $wpdb;
@@ -95,8 +112,7 @@ class Admin {
 		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_results WHERE quiz_id = %d", $quiz_id ) );
 
 		if ( ! $results ) {
-			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '2' ), admin_url( 'admin.php?page=pa-results' ) ) );
-			exit;
+			return;
 		}
 
 		$filename = 'quiz-results-' . $quiz_id . '-' . date( 'Y-m-d' ) . '.csv';
@@ -517,7 +533,23 @@ class Admin {
 		<div class="wrap">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Quizzes', 'personality-assessment' ); ?></h1>
 			<a href="?page=personality-assessment&action=new" class="page-title-action"><?php esc_html_e( 'Add New', 'personality-assessment' ); ?></a>
+			<button id="pa-import-quiz-button" class="page-title-action"><?php esc_html_e( 'Import Quiz', 'personality-assessment' ); ?></button>
 			<hr class="wp-header-end">
+
+			<div id="pa-import-form-wrapper" style="display: none; margin-bottom: 20px;">
+				<form method="post" enctype="multipart/form-data">
+					<input type="hidden" name="action" value="import_quiz_csv" />
+					<?php wp_nonce_field( 'pa_import_quiz_csv', 'pa_import_quiz_nonce' ); ?>
+					<h2><?php esc_html_e( 'Import Quiz from CSV', 'personality-assessment' ); ?></h2>
+					<p><?php esc_html_e( 'Upload a CSV file to create a new quiz. The file should have a header row with "Question" followed by option columns (e.g., "Option A", "Option B").', 'personality-assessment' ); ?></p>
+					<p>
+						<label for="pa_quiz_csv"><?php esc_html_e( 'Choose a CSV file:', 'personality-assessment' ); ?></label>
+						<input type="file" id="pa_quiz_csv" name="pa_quiz_csv" accept=".csv" required />
+					</p>
+					<?php submit_button( __( 'Upload and Import', 'personality-assessment' ) ); ?>
+				</form>
+			</div>
+
 			<form method="post">
 				<?php
 				$list_table->display();
@@ -1120,5 +1152,110 @@ class Admin {
 
 		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment' ) );
 		exit;
+	}
+
+	/**
+	 * Import quiz from CSV.
+	 */
+	public function import_quiz_from_csv() {
+		if ( ! isset( $_POST['action'] ) || 'import_quiz_csv' !== $_POST['action'] ) {
+			return;
+		}
+
+		if ( ! isset( $_POST['pa_import_quiz_nonce'] ) || ! wp_verify_nonce( $_POST['pa_import_quiz_nonce'], 'pa_import_quiz_csv' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( isset( $_FILES['pa_quiz_csv'] ) && UPLOAD_ERR_OK === $_FILES['pa_quiz_csv']['error'] ) {
+			$file = $_FILES['pa_quiz_csv']['tmp_name'];
+
+			if ( ! is_uploaded_file( $file ) ) {
+				wp_safe_redirect( add_query_arg( array( 'pa-import-error' => '1' ), admin_url( 'admin.php?page=personality-assessment' ) ) );
+				exit;
+			}
+
+			$file_name = sanitize_file_name( $_FILES['pa_quiz_csv']['name'] );
+			$quiz_title = str_replace( '.csv', '', $file_name );
+
+			global $wpdb;
+
+			// Create a new quiz.
+			$wpdb->insert(
+				"{$wpdb->prefix}pa_quizzes",
+				array(
+					'title'  => $quiz_title,
+					'slug'   => sanitize_title( $quiz_title ),
+					'status' => 'draft',
+				)
+			);
+			$quiz_id = $wpdb->insert_id;
+
+			// Process the CSV.
+			if ( ( $handle = fopen( $file, 'r' ) ) !== false ) {
+				$header = fgetcsv( $handle ); // Skip header row.
+				$question_position = 1;
+
+				while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+					$question_title = array_shift( $row );
+
+					if ( empty( $question_title ) ) {
+						continue;
+					}
+
+					$wpdb->insert(
+						"{$wpdb->prefix}pa_questions",
+						array(
+							'quiz_id'     => $quiz_id,
+							'title'       => $question_title,
+							'type'        => 'single',
+							'position'    => $question_position++,
+							'is_required' => 1,
+						)
+					);
+					$question_id = $wpdb->insert_id;
+					$answer_position = 1;
+
+					foreach ( $row as $answer_cell ) {
+						if ( empty( $answer_cell ) ) {
+							continue;
+						}
+
+						if ( strtolower( $answer_cell ) === 'none' ) {
+							$label_weights = array();
+						} else {
+							$label_weights = array();
+							$pairs = explode( ';', $answer_cell );
+							foreach ( $pairs as $pair ) {
+								$parts = explode( ':', $pair );
+								if ( count( $parts ) === 2 ) {
+									$label_weights[ trim( $parts[0] ) ] = floatval( $parts[1] );
+								}
+							}
+						}
+
+						$wpdb->insert(
+							"{$wpdb->prefix}pa_answers",
+							array(
+								'question_id'   => $question_id,
+								'label'         => $answer_cell,
+								'label_weights' => wp_json_encode( $label_weights ),
+								'position'      => $answer_position++,
+							)
+						);
+					}
+				}
+				fclose( $handle );
+
+				wp_safe_redirect( add_query_arg( array( 'pa-import-success' => '1' ), admin_url( 'admin.php?page=personality-assessment' ) ) );
+				exit;
+			}
+		} else {
+			wp_safe_redirect( add_query_arg( array( 'pa-import-error' => '2' ), admin_url( 'admin.php?page=personality-assessment' ) ) );
+			exit;
+		}
 	}
 }
