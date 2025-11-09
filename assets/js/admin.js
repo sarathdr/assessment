@@ -237,5 +237,11 @@
                 e.preventDefault();
             }
         });
+
+        // Toggle Import Form
+        $('#pa-import-quiz-button').on('click', function(e) {
+            e.preventDefault();
+            $('#pa-import-form-wrapper').toggle();
+        });
     });
 })(jQuery);
