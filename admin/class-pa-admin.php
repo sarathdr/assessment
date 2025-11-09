@@ -1178,7 +1178,7 @@ class Admin {
 				exit;
 			}
 
-			$file_name = sanitize_file_name( $_FILES['pa_quiz_csv']['name'] );
+			$file_name  = sanitize_file_name( $_FILES['pa_quiz_csv']['name'] );
 			$quiz_title = str_replace( '.csv', '', $file_name );
 
 			global $wpdb;
@@ -1196,15 +1196,14 @@ class Admin {
 
 			// Process the CSV.
 			if ( ( $handle = fopen( $file, 'r' ) ) !== false ) {
-				$header = fgetcsv( $handle ); // Skip header row.
+				$header            = fgetcsv( $handle ); // Skip header row.
 				$question_position = 1;
 
 				while ( ( $row = fgetcsv( $handle ) ) !== false ) {
-					$question_title = array_shift( $row );
-
-					if ( empty( $question_title ) ) {
-						continue;
+					if ( empty( $row[0] ) ) {
+						continue; // Skip empty rows where the question is blank.
 					}
+					$question_title = sanitize_text_field( $row[0] );
 
 					$wpdb->insert(
 						"{$wpdb->prefix}pa_questions",
@@ -1217,22 +1216,29 @@ class Admin {
 						)
 					);
 					$question_id = $wpdb->insert_id;
+
+					// Process answers from subsequent columns.
+					$answer_options  = array_slice( $row, 1 );
 					$answer_position = 1;
 
-					foreach ( $row as $answer_cell ) {
+					foreach ( $answer_options as $answer_cell ) {
 						if ( empty( $answer_cell ) ) {
 							continue;
 						}
 
-						if ( strtolower( $answer_cell ) === 'none' ) {
-							$label_weights = array();
-						} else {
-							$label_weights = array();
-							$pairs = explode( ';', $answer_cell );
+						$answer_label  = sanitize_text_field( $answer_cell );
+						$label_weights = array();
+
+						if ( 'None' !== $answer_label ) {
+							$pairs = explode( ';', $answer_label );
 							foreach ( $pairs as $pair ) {
 								$parts = explode( ':', $pair );
-								if ( count( $parts ) === 2 ) {
-									$label_weights[ trim( $parts[0] ) ] = floatval( $parts[1] );
+								if ( 2 === count( $parts ) ) {
+									$label = trim( $parts[0] );
+									$weight = trim( $parts[1] );
+									if ( ! empty( $label ) ) {
+										$label_weights[ $label ] = floatval( $weight );
+									}
 								}
 							}
 						}
@@ -1241,7 +1247,7 @@ class Admin {
 							"{$wpdb->prefix}pa_answers",
 							array(
 								'question_id'   => $question_id,
-								'label'         => $answer_cell,
+								'label'         => $answer_label,
 								'label_weights' => wp_json_encode( $label_weights ),
 								'position'      => $answer_position++,
 							)
