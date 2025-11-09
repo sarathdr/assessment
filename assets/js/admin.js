@@ -239,7 +239,7 @@
         });
 
         // Toggle Import Form
-        $('#pa-import-quiz-button').on('click', function(e) {
+        $(document).on('click', '#pa-import-quiz-button', function(e) {
             e.preventDefault();
             $('#pa-import-form-wrapper').toggle();
         });
