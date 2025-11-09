@@ -76,8 +76,16 @@ class Quizzes_List_Table extends \WP_List_Table {
 	 * Render the title column.
 	 */
 	public function column_title( $item ) {
-		$actions = array(
-			'edit' => sprintf( '<a href="?page=personality-assessment&action=edit&id=%s">%s</a>', $item['id'], __( 'Edit', 'personality-assessment' ) ),
+		$delete_nonce = wp_create_nonce( 'pa_delete_quiz' );
+		$actions      = array(
+			'edit'   => sprintf( '<a href="?page=personality-assessment&action=edit&id=%s">%s</a>', $item['id'], __( 'Edit', 'personality-assessment' ) ),
+			'delete' => sprintf(
+				'<a href="?page=%s&action=delete_quiz&id=%s&_wpnonce=%s" class="pa-delete-quiz">%s</a>',
+				esc_attr( $_REQUEST['page'] ),
+				absint( $item['id'] ),
+				$delete_nonce,
+				__( 'Delete', 'personality-assessment' )
+			),
 		);
 
 		return sprintf( '%1$s %2$s', $item['title'], $this->row_actions( $actions ) );
