@@ -32,6 +32,7 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'save_answer' ) );
 		add_action( 'admin_init', array( $this, 'delete_question' ) );
 		add_action( 'admin_init', array( $this, 'delete_answer' ) );
+		add_action( 'admin_init', array( $this, 'delete_quiz' ) );
 		add_action( 'admin_init', array( $this, 'create_quiz_and_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_ajax_pa_add_answer', array( $this, 'add_answer_ajax_handler' ) );
@@ -41,33 +42,6 @@ class Admin {
 		add_action( 'wp_ajax_pa_save_answer_details', array( $this, 'save_answer_details_ajax_handler' ) );
 		add_action( 'wp_ajax_pa_save_question_title', array( $this, 'save_question_title_ajax_handler' ) );
 		add_action( 'admin_init', array( $this, 'export_results_csv' ) );
-		add_action( 'admin_notices', array( $this, 'show_admin_notices' ) );
-	}
-
-	/**
-	 * Show admin notices.
-	 */
-	public function show_admin_notices() {
-		if ( ! isset( $_GET['pa-export-error'] ) ) {
-			return;
-		}
-
-		$error_code = sanitize_key( $_GET['pa-export-error'] );
-		$message    = '';
-
-		if ( '1' === $error_code ) {
-			$message = __( 'Please select a quiz to export results.', 'personality-assessment' );
-		} elseif ( '2' === $error_code ) {
-			$message = __( 'The selected quiz has no results to export.', 'personality-assessment' );
-		}
-
-		if ( $message ) {
-			?>
-			<div class="notice notice-error is-dismissible">
-				<p><?php echo esc_html( $message ); ?></p>
-			</div>
-			<?php
-		}
 	}
 
 	/**
@@ -85,8 +59,7 @@ class Admin {
 		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
 
 		if ( ! $quiz_id ) {
-			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '1' ), admin_url( 'admin.php?page=pa-results' ) ) );
-			exit;
+			return;
 		}
 
 		global $wpdb;
@@ -94,8 +67,7 @@ class Admin {
 		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_results WHERE quiz_id = %d", $quiz_id ) );
 
 		if ( ! $results ) {
-			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '2' ), admin_url( 'admin.php?page=pa-results' ) ) );
-			exit;
+			return;
 		}
 
 		$filename = 'quiz-results-' . $quiz_id . '-' . date( 'Y-m-d' ) . '.csv';
@@ -1081,6 +1053,43 @@ class Admin {
 		$quiz_id = $wpdb->get_var( $wpdb->prepare( "SELECT quiz_id FROM {$wpdb->prefix}pa_questions WHERE id = %d", $question_id ) );
 
 		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment&action=edit&id=' . $quiz_id ) );
+		exit;
+	}
+
+	/**
+	 * Delete a quiz.
+	 */
+	public function delete_quiz() {
+		if ( ! isset( $_GET['action'] ) || 'delete_quiz' !== $_GET['action'] ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['id'] ) || ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( $_GET['_wpnonce'], 'pa_delete_quiz' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$quiz_id = intval( $_GET['id'] );
+
+		// Delete quiz
+		$wpdb->delete( "{$wpdb->prefix}pa_quizzes", array( 'id' => $quiz_id ) );
+
+		// Delete results
+		$wpdb->delete( "{$wpdb->prefix}pa_results", array( 'quiz_id' => $quiz_id ) );
+
+		// Delete questions and answers
+		$questions = $wpdb->get_results( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $quiz_id ) );
+		foreach ( $questions as $question ) {
+			$wpdb->delete( "{$wpdb->prefix}pa_answers", array( 'question_id' => $question->id ) );
+		}
+		$wpdb->delete( "{$wpdb->prefix}pa_questions", array( 'quiz_id' => $quiz_id ) );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=personality-assessment' ) );
 		exit;
 	}
 }
