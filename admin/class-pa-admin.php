@@ -1200,11 +1200,10 @@ class Admin {
 				$question_position = 1;
 
 				while ( ( $row = fgetcsv( $handle ) ) !== false ) {
-					$question_title = array_shift( $row );
-
-					if ( empty( $question_title ) ) {
-						continue;
+					if ( empty( $row[0] ) ) {
+						continue; // Skip empty rows where the question is blank.
 					}
+					$question_title = sanitize_text_field( $row[0] );
 
 					$wpdb->insert(
 						"{$wpdb->prefix}pa_questions",
@@ -1217,31 +1216,26 @@ class Admin {
 						)
 					);
 					$question_id = $wpdb->insert_id;
+
+					// Process answers from 'Option A', 'Option B', etc.
+					$answer_options = array_slice( $row, 1, 4 );
+					$course_labels  = array( 'course_1', 'course_2', 'course_3', 'course_4' );
 					$answer_position = 1;
 
-					foreach ( $row as $answer_cell ) {
-						if ( empty( $answer_cell ) ) {
+					foreach ( $answer_options as $index => $answer_label ) {
+						if ( empty( $answer_label ) ) {
 							continue;
 						}
 
-						if ( strtolower( $answer_cell ) === 'none' ) {
-							$label_weights = array();
-						} else {
-							$label_weights = array();
-							$pairs = explode( ';', $answer_cell );
-							foreach ( $pairs as $pair ) {
-								$parts = explode( ':', $pair );
-								if ( count( $parts ) === 2 ) {
-									$label_weights[ trim( $parts[0] ) ] = floatval( $parts[1] );
-								}
-							}
-						}
+						$label_weights = array(
+							$course_labels[ $index ] => 1.0,
+						);
 
 						$wpdb->insert(
 							"{$wpdb->prefix}pa_answers",
 							array(
 								'question_id'   => $question_id,
-								'label'         => $answer_cell,
+								'label'         => sanitize_text_field( $answer_label ),
 								'label_weights' => wp_json_encode( $label_weights ),
 								'position'      => $answer_position++,
 							)
