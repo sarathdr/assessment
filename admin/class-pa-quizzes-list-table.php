@@ -39,10 +39,14 @@ class Quizzes_List_Table extends \WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
-			'cb'        => '<input type="checkbox" />',
-			'title'     => __( 'Title', 'personality-assessment' ),
-			'shortcode' => __( 'Shortcode', 'personality-assessment' ),
-			'questions' => __( 'Questions', 'personality-assessment' ),
+			'cb'            => '<input type="checkbox" />',
+			'title'         => __( 'Title', 'personality-assessment' ),
+			'shortcode'     => __( 'Shortcode', 'personality-assessment' ),
+			'questions'     => __( 'Questions', 'personality-assessment' ),
+			'status'        => __( 'Status', 'personality-assessment' ),
+			'require_login' => __( 'Requires Login', 'personality-assessment' ),
+			'created_at'    => __( 'Created At', 'personality-assessment' ),
+			'updated_at'    => __( 'Updated At', 'personality-assessment' ),
 		);
 	}
 
@@ -69,7 +73,7 @@ class Quizzes_List_Table extends \WP_List_Table {
 	public function column_title( $item ) {
 		$actions = array(
 			'edit'   => sprintf( '<a href="?page=%s&action=%s&id=%s">' . __( 'Edit', 'personality-assessment' ) . '</a>', $_REQUEST['page'], 'edit', $item->id ),
-			'delete' => sprintf( '<a href="?page=%s&action=%s&id=%s&_wpnonce=%s">' . __( 'Delete', 'personality-assessment' ) . '</a>', $_REQUEST['page'], 'delete_quiz', $item->id, wp_create_nonce( 'pa_delete_quiz' ) ),
+			'delete' => sprintf( '<a href="?page=%s&action=%s&id=%s&_wpnonce=%s" class="pa-delete-quiz">' . __( 'Delete', 'personality-assessment' ) . '</a>', $_REQUEST['page'], 'delete_quiz', $item->id, wp_create_nonce( 'pa_delete_quiz' ) ),
 		);
 		return sprintf( '%1$s %2$s', $item->title, $this->row_actions( $actions ) );
 	}
@@ -91,11 +95,41 @@ class Quizzes_List_Table extends \WP_List_Table {
 	}
 
 	/**
+	 * The status column.
+	 */
+	public function column_status( $item ) {
+		return ucfirst( $item->status );
+	}
+
+	/**
+	 * The require login column.
+	 */
+	public function column_require_login( $item ) {
+		return $item->require_login ? __( 'Yes', 'personality-assessment' ) : __( 'No', 'personality-assessment' );
+	}
+
+	/**
+	 * The created at column.
+	 */
+	public function column_created_at( $item ) {
+		return $item->created_at;
+	}
+
+	/**
+	 * The updated at column.
+	 */
+	public function column_updated_at( $item ) {
+		return $item->updated_at;
+	}
+
+	/**
 	 * Get the sortable columns.
 	 */
 	protected function get_sortable_columns() {
 		return array(
-			'title' => array( 'title', false ),
+			'title'      => array( 'title', false ),
+			'created_at' => array( 'created_at', false ),
+			'updated_at' => array( 'updated_at', false ),
 		);
 	}
 }

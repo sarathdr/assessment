@@ -72,6 +72,21 @@ class Admin {
 			}
 		}
 
+		if ( isset( $_GET['pa-export-error'] ) ) {
+			$error_code = sanitize_key( $_GET['pa-export-error'] );
+			switch ( $error_code ) {
+				case '1':
+					$error_message = __( 'Please select a quiz to export results from.', 'personality-assessment' );
+					break;
+				case '2':
+					$error_message = __( 'The selected quiz has no results to export.', 'personality-assessment' );
+					break;
+				default:
+					$error_message = __( 'An unknown error occurred during export.', 'personality-assessment' );
+					break;
+			}
+		}
+
 		if ( $success_message ) {
 			?>
 			<div class="notice notice-success is-dismissible">
@@ -104,7 +119,8 @@ class Admin {
 		$quiz_id = isset( $_POST['quiz_id'] ) ? intval( $_POST['quiz_id'] ) : 0;
 
 		if ( ! $quiz_id ) {
-			return;
+			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '1' ), admin_url( 'admin.php?page=pa-results' ) ) );
+			exit;
 		}
 
 		global $wpdb;
@@ -112,7 +128,8 @@ class Admin {
 		$results = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}pa_results WHERE quiz_id = %d", $quiz_id ) );
 
 		if ( ! $results ) {
-			return;
+			wp_safe_redirect( add_query_arg( array( 'pa-export-error' => '2' ), admin_url( 'admin.php?page=pa-results' ) ) );
+			exit;
 		}
 
 		$filename = 'quiz-results-' . $quiz_id . '-' . date( 'Y-m-d' ) . '.csv';
@@ -1196,7 +1213,8 @@ class Admin {
 
 			// Process the CSV.
 			if ( ( $handle = fopen( $file, 'r' ) ) !== false ) {
-				$header            = fgetcsv( $handle ); // Skip header row.
+				$header            = fgetcsv( $handle );
+				$answer_labels     = array_slice( $header, 1 );
 				$question_position = 1;
 
 				while ( ( $row = fgetcsv( $handle ) ) !== false ) {
@@ -1221,16 +1239,17 @@ class Admin {
 					$answer_options  = array_slice( $row, 1 );
 					$answer_position = 1;
 
-					foreach ( $answer_options as $answer_cell ) {
+					foreach ( $answer_options as $index => $answer_cell ) {
 						if ( empty( $answer_cell ) ) {
 							continue;
 						}
 
-						$answer_label  = sanitize_text_field( $answer_cell );
+						$answer_label  = isset( $answer_labels[ $index ] ) ? sanitize_text_field( $answer_labels[ $index ] ) : 'Option ' . $answer_position;
+						$label_weights_str = sanitize_text_field( $answer_cell );
 						$label_weights = array();
 
-						if ( 'None' !== $answer_label ) {
-							$pairs = explode( ';', $answer_label );
+						if ( 'None' !== $label_weights_str ) {
+							$pairs = explode( ';', $label_weights_str );
 							foreach ( $pairs as $pair ) {
 								$parts = explode( ':', $pair );
 								if ( 2 === count( $parts ) ) {
