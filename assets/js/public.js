@@ -3,21 +3,36 @@
 	$(function() {
 		var currentQuestion = 0;
 		var questions = $( '.pa-question' );
+		var steps = $( '.pa-step' );
 		var progressBar = $( '.pa-progress-bar-inner' );
 		var prevBtn = $( '.pa-prev-btn' );
 		var nextBtn = $( '.pa-next-btn' );
 		var submitBtn = $( '.pa-submit-btn' );
 
 		function showQuestion( index ) {
+			// Ensure index is within bounds
+			if ( index < 0 ) index = 0;
+			if ( index >= questions.length ) index = questions.length - 1;
+			
+			currentQuestion = index;
+
 			questions.removeClass( 'active' );
-			$( questions[ index ] ).addClass( 'active' );
-			updateProgressBar();
+			questions.eq( index ).addClass( 'active' );
+			
+			// Update steps active state
+			steps.removeClass( 'current' );
+			steps.eq( index ).addClass( 'current' );
+
+			updatePagination( index );
 			updateNavButtons();
 		}
 
-		function updateProgressBar() {
-			var progress = ( ( currentQuestion + 1 ) / questions.length ) * 100;
-			progressBar.css( 'width', progress + '%' );
+		function updatePagination( currentIndex ) {
+			// Show all steps
+			steps.css( 'display', 'flex' );
+			
+			// Remove any leftover ellipses if they exist (cleanup)
+			$( '.pa-ellipsis' ).remove();
 		}
 
 		function updateNavButtons() {
@@ -36,14 +51,48 @@
 			}
 		}
 
+		// Review Button Click
+		$( '.pa-btn-review' ).on( 'click', function() {
+			steps.eq( currentQuestion ).addClass( 'review' );
+		});
+
+		// Check if question is answered
+		function isQuestionAnswered( index ) {
+			var question = questions.eq( index );
+			var type = question.find( 'input' ).first().attr( 'type' );
+			
+			if ( 'radio' === type || 'checkbox' === type ) {
+				return question.find( 'input:checked' ).length > 0;
+			} else {
+				return question.find( 'textarea, input[type="text"]' ).val().trim() !== '';
+			}
+		}
+
+		// Handle Input Change (Mark as Answered)
+		questions.on( 'change', 'input, textarea', function() {
+			if ( isQuestionAnswered( currentQuestion ) ) {
+				steps.eq( currentQuestion ).addClass( 'answered' ).removeClass( 'review' );
+			} else {
+				steps.eq( currentQuestion ).removeClass( 'answered' );
+			}
+		});
+
 		nextBtn.on( 'click', function() {
-			currentQuestion++;
-			showQuestion( currentQuestion );
+			// If not answered, mark as review
+			if ( ! isQuestionAnswered( currentQuestion ) ) {
+				steps.eq( currentQuestion ).addClass( 'review' );
+			}
+			showQuestion( currentQuestion + 1 );
 		});
 
 		prevBtn.on( 'click', function() {
-			currentQuestion--;
-			showQuestion( currentQuestion );
+			showQuestion( currentQuestion - 1 );
+		});
+
+		// Use event delegation for steps
+		$( document ).on( 'click', '.pa-step', function() {
+			var stepIndex = $( this ).data( 'step' ) - 1;
+			showQuestion( stepIndex );
 		});
 
 		submitBtn.on( 'click', function() {
@@ -82,6 +131,7 @@
 			});
 		});
 
-		showQuestion( currentQuestion );
+		// Initial render
+		showQuestion( 0 );
 	});
 })( jQuery );
