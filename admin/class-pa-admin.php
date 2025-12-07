@@ -3,9 +3,9 @@
  * Admin
  *
  * @package           PersonalityAssessment
- * @author            Jules
- * @copyright         2024 Jules
- * @license           GPL-3.0-or-later
+ * @author            Sarath
+ * @copyright         2025 Drizzle limited
+ * @license           Contact: sarath@drizzle.media
  *
  * @wordpress-plugin
  */
@@ -44,7 +44,7 @@ class Admin
 		add_action('wp_ajax_pa_save_question_details', array($this, 'save_question_details_ajax_handler'));
 		add_action('wp_ajax_pa_save_answer_details', array($this, 'save_answer_details_ajax_handler'));
 		add_action('wp_ajax_pa_save_question_title', array($this, 'save_question_title_ajax_handler'));
-		add_action('admin_init', array($this, 'export_results_csv'));
+		add_action('admin_init', array($this, 'export_results_excel'));
 		add_action('admin_post_pa_export_quiz_json', array($this, 'export_quiz_json'));
 		add_action('admin_notices', array($this, 'show_admin_notices'));
 	}
@@ -96,9 +96,12 @@ class Admin
 	/**
 	 * Export results to CSV
 	 */
-	public function export_results_csv()
+	/**
+	 * Export results to Excel (XML Spreadsheet 2003).
+	 */
+	public function export_results_excel()
 	{
-		if (!isset($_POST['action']) || 'export_results_csv' !== $_POST['action']) {
+		if (!isset($_POST['action']) || 'export_results_excel' !== $_POST['action']) {
 			return;
 		}
 
@@ -114,57 +117,140 @@ class Admin
 
 		global $wpdb;
 
-		$results = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}pa_results WHERE quiz_id = %d", $quiz_id));
+		$results = $wpdb->get_results($wpdb->prepare(
+			"SELECT r.*, u.display_name 
+			FROM {$wpdb->prefix}pa_results r 
+			LEFT JOIN {$wpdb->users} u ON r.user_id = u.ID 
+			WHERE r.quiz_id = %d",
+			$quiz_id
+		));
 
 		if (!$results) {
 			return;
 		}
 
-		$filename = 'quiz-results-' . $quiz_id . '-' . date('Y-m-d') . '.csv';
+		// Fetch all questions for this quiz to map IDs to titles
+		$questions = $wpdb->get_results($wpdb->prepare("SELECT id, title FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $quiz_id));
+		$question_map = array();
+		foreach ($questions as $q) {
+			$question_map[$q->id] = $q->title;
+		}
 
-		header('Content-Type: text/csv');
+		$filename = 'quiz-results-' . $quiz_id . '-' . date('Y-m-d') . '.xls';
+
+		header('Content-Type: application/vnd.ms-excel');
 		header('Content-Disposition: attachment; filename="' . $filename . '"');
 
-		$output = fopen('php://output', 'w');
+		echo '<?xml version="1.0"?>';
+		echo '<?mso-application progid="Excel.Sheet"?>';
+		echo '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"';
+		echo ' xmlns:o="urn:schemas-microsoft-com:office:office"';
+		echo ' xmlns:x="urn:schemas-microsoft-com:office:excel"';
+		echo ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"';
+		echo ' xmlns:html="http://www.w3.org/TR/REC-html40">';
 
-		// Get all possible labels from the results
-		$all_labels = array();
+		// Sheet 1: Detailed Answers
+		echo '<Worksheet ss:Name="Detailed Answers">';
+		echo '<Table>';
+		echo '<Row>';
+		echo '<Cell><Data ss:Type="String">Username</Data></Cell>';
+		echo '<Cell><Data ss:Type="String">Question</Data></Cell>';
+		echo '<Cell><Data ss:Type="String">Answer</Data></Cell>';
+		echo '<Cell><Data ss:Type="String">Labels</Data></Cell>';
+		echo '<Cell><Data ss:Type="String">Score</Data></Cell>';
+		echo '</Row>';
+
 		foreach ($results as $result) {
-			$label_scores = json_decode($result->label_scores, true);
-			if (is_array($label_scores)) {
-				foreach ($label_scores as $label => $score) {
-					if (!in_array($label, $all_labels)) {
-						$all_labels[] = $label;
+			$username = $result->display_name ? $result->display_name : 'Guest';
+			$payload = json_decode($result->raw_payload, true);
+			$answers = isset($payload['answers']) ? $payload['answers'] : array();
+
+			foreach ($answers as $answer) {
+				$question_id = isset($answer['question_id']) ? $answer['question_id'] : 0;
+				$question_title = isset($question_map[$question_id]) ? $question_map[$question_id] : 'Question ID: ' . $question_id;
+
+				$answer_text = '';
+				$labels_text = '';
+				$score_text = '';
+
+				if (isset($answer['value'])) {
+					$answer_text = $answer['value'];
+				} elseif (isset($answer['selected']) && is_array($answer['selected'])) {
+					$selected_labels = array();
+					$label_details = array();
+					$scores = array();
+
+					foreach ($answer['selected'] as $selected) {
+						$selected_labels[] = isset($selected['label']) ? $selected['label'] : '';
+
+						if (isset($selected['label_weights'])) {
+							$weights = json_decode($selected['label_weights'], true);
+							if (is_array($weights)) {
+								foreach ($weights as $l => $w) {
+									$label_details[] = $l;
+									$scores[] = $w;
+								}
+							}
+						}
 					}
+					$answer_text = implode(', ', $selected_labels);
+					$labels_text = implode(', ', $label_details);
+					$score_text = implode(', ', $scores);
 				}
+
+				echo '<Row>';
+				echo '<Cell><Data ss:Type="String">' . htmlspecialchars($username, ENT_XML1, 'UTF-8') . '</Data></Cell>';
+				echo '<Cell><Data ss:Type="String">' . htmlspecialchars($question_title, ENT_XML1, 'UTF-8') . '</Data></Cell>';
+				echo '<Cell><Data ss:Type="String">' . htmlspecialchars($answer_text, ENT_XML1, 'UTF-8') . '</Data></Cell>';
+				echo '<Cell><Data ss:Type="String">' . htmlspecialchars($labels_text, ENT_XML1, 'UTF-8') . '</Data></Cell>';
+				echo '<Cell><Data ss:Type="String">' . htmlspecialchars($score_text, ENT_XML1, 'UTF-8') . '</Data></Cell>';
+				echo '</Row>';
 			}
 		}
-		sort($all_labels);
+		echo '</Table>';
+		echo '</Worksheet>';
 
-		// Header row
-		$header = array('user_id', 'submitted_at', 'score_total', 'dominant_label');
-		$header = array_merge($header, $all_labels);
-		fputcsv($output, $header);
+		// Sheet 2: Summary
+		echo '<Worksheet ss:Name="Summary">';
+		echo '<Table>';
+		echo '<Row>';
+		echo '<Cell><Data ss:Type="String">Username</Data></Cell>';
+		for ($i = 1; $i <= 5; $i++) {
+			echo '<Cell><Data ss:Type="String">Top Label ' . $i . '</Data></Cell>';
+			echo '<Cell><Data ss:Type="String">Score ' . $i . '</Data></Cell>';
+		}
+		echo '</Row>';
 
-		// Data rows
 		foreach ($results as $result) {
-			$row = array(
-				$result->user_id,
-				$result->submitted_at,
-				$result->score_total,
-				$result->dominant_label,
-			);
+			$username = $result->display_name ? $result->display_name : 'Guest';
 			$label_scores = json_decode($result->label_scores, true);
 			if (!is_array($label_scores)) {
 				$label_scores = array();
 			}
-			foreach ($all_labels as $label) {
-				$row[] = isset($label_scores[$label]) ? $label_scores[$label] : 0;
-			}
-			fputcsv($output, $row);
-		}
+			arsort($label_scores);
+			$top_labels = array_slice($label_scores, 0, 5, true);
 
-		fclose($output);
+			echo '<Row>';
+			echo '<Cell><Data ss:Type="String">' . htmlspecialchars($username, ENT_XML1, 'UTF-8') . '</Data></Cell>';
+
+			$count = 0;
+			foreach ($top_labels as $label => $score) {
+				echo '<Cell><Data ss:Type="String">' . htmlspecialchars($label, ENT_XML1, 'UTF-8') . '</Data></Cell>';
+				echo '<Cell><Data ss:Type="Number">' . $score . '</Data></Cell>';
+				$count++;
+			}
+
+			// Fill empty cells if less than 5 labels
+			for ($j = $count; $j < 5; $j++) {
+				echo '<Cell><Data ss:Type="String"></Data></Cell>';
+				echo '<Cell><Data ss:Type="String"></Data></Cell>';
+			}
+			echo '</Row>';
+		}
+		echo '</Table>';
+		echo '</Worksheet>';
+
+		echo '</Workbook>';
 		exit;
 	}
 
@@ -232,7 +318,7 @@ class Admin
 		global $wpdb;
 
 		$question_id = intval($_POST['question_id']);
-		$title = sanitize_text_field($_POST['title']);
+		$title = sanitize_text_field(wp_unslash($_POST['title']));
 
 		$wpdb->update("{$wpdb->prefix}pa_questions", array('title' => $title), array('id' => $question_id));
 
@@ -260,12 +346,12 @@ class Admin
 		$sanitized_label_weights = array();
 		if (is_array($label_weights)) {
 			foreach ($label_weights as $label => $weight) {
-				$sanitized_label_weights[sanitize_text_field($label)] = floatval($weight);
+				$sanitized_label_weights[sanitize_text_field(wp_unslash($label))] = floatval($weight);
 			}
 		}
 
 		$data = array(
-			'label' => sanitize_text_field($_POST['label']),
+			'label' => sanitize_text_field(wp_unslash($_POST['label'])),
 			'label_weights' => wp_json_encode($sanitized_label_weights),
 		);
 
@@ -315,7 +401,7 @@ class Admin
 		$question_id = intval($_POST['question_id']);
 
 		$data = array(
-			'type' => sanitize_text_field($_POST['question_type']),
+			'type' => sanitize_text_field(wp_unslash($_POST['question_type'])),
 			'is_required' => isset($_POST['is_required']) ? 1 : 0,
 		);
 
@@ -347,7 +433,7 @@ class Admin
 
 		$quiz_id = intval($_POST['quiz_id']);
 		$data = array(
-			'title' => sanitize_text_field($_POST['question_title']),
+			'title' => sanitize_text_field(wp_unslash($_POST['question_title'])),
 			'type' => 'single',
 			'is_required' => 1,
 			'quiz_id' => $quiz_id,
@@ -808,7 +894,7 @@ class Admin
 			<hr class="wp-header-end">
 
 			<form method="post" action="">
-				<input type="hidden" name="action" value="export_results_csv">
+				<input type="hidden" name="action" value="export_results_excel">
 				<?php
 				global $wpdb;
 				$quizzes = $wpdb->get_results("SELECT id, title FROM {$wpdb->prefix}pa_quizzes");
@@ -819,7 +905,7 @@ class Admin
 						<option value="<?php echo esc_attr($quiz->id); ?>"><?php echo esc_html($quiz->title); ?></option>
 					<?php endforeach; ?>
 				</select>
-				<?php submit_button(__('Export to CSV', 'personality-assessment'), 'primary', 'export_results'); ?>
+				<?php submit_button(__('Export to Excel', 'personality-assessment'), 'primary', 'export_results'); ?>
 			</form>
 
 			<form method="post">
@@ -1006,13 +1092,13 @@ class Admin
 		$quiz_id = isset($_POST['quiz_id']) ? intval($_POST['quiz_id']) : 0;
 
 		$data = array(
-			'title' => sanitize_text_field($_POST['title']),
-			'description' => sanitize_textarea_field($_POST['description']),
-			'status' => sanitize_text_field($_POST['status']),
+			'title' => sanitize_text_field(wp_unslash($_POST['title'])),
+			'description' => sanitize_textarea_field(wp_unslash($_POST['description'])),
+			'status' => sanitize_text_field(wp_unslash($_POST['status'])),
 			'require_login' => isset($_POST['require_login']) ? 1 : 0,
-			'webhook_url' => sanitize_url($_POST['webhook_url']),
-			'webhook_secret' => sanitize_text_field($_POST['webhook_secret']),
-			'success_message' => wp_kses_post($_POST['success_message']),
+			'webhook_url' => sanitize_url(wp_unslash($_POST['webhook_url'])),
+			'webhook_secret' => sanitize_text_field(wp_unslash($_POST['webhook_secret'])),
+			'success_message' => wp_kses_post(wp_unslash($_POST['success_message'])),
 		);
 
 		if ($quiz_id) {
@@ -1054,8 +1140,8 @@ class Admin
 		$quiz_id = isset($_POST['quiz_id']) ? intval($_POST['quiz_id']) : 0;
 
 		$data = array(
-			'title' => sanitize_text_field($_POST['question_title']),
-			'type' => sanitize_text_field($_POST['question_type']),
+			'title' => sanitize_text_field(wp_unslash($_POST['question_title'])),
+			'type' => sanitize_text_field(wp_unslash($_POST['question_type'])),
 			'is_required' => isset($_POST['is_required']) ? 1 : 0,
 		);
 
@@ -1162,9 +1248,9 @@ class Admin
 		$question_id = isset($_POST['question_id']) ? intval($_POST['question_id']) : 0;
 
 		$data = array(
-			'label' => sanitize_text_field($_POST['answer_label']),
+			'label' => sanitize_text_field(wp_unslash($_POST['answer_label'])),
 			'weight' => floatval($_POST['answer_weight']),
-			'personality_label' => sanitize_text_field($_POST['personality_label']),
+			'personality_label' => sanitize_text_field(wp_unslash($_POST['personality_label'])),
 		);
 
 		if ($answer_id) {

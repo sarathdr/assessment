@@ -3,9 +3,9 @@
  * Deactivator
  *
  * @package           PersonalityAssessment
- * @author            Jules
- * @copyright         2024 Jules
- * @license           GPL-3.0-or-later
+ * @author            Sarath
+ * @copyright         2025 Drizzle limited
+ * @license           Contact: sarath@drizzle.media
  *
  * @wordpress-plugin
  */
@@ -13,18 +13,20 @@
 namespace PA;
 
 // Exit if accessed directly.
-if ( ! defined( 'ABSPATH' ) ) {
+if (!defined('ABSPATH')) {
 	exit;
 }
 
 /**
  * Fired during plugin deactivation
  */
-class Deactivator {
+class Deactivator
+{
 	/**
 	 * Run the deactivator
 	 */
-	public static function deactivate() {
+	public static function deactivate()
+	{
 		// No custom deactivation logic needed for now.
 	}
 }

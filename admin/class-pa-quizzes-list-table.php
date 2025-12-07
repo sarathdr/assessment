@@ -3,9 +3,9 @@
  * Quizzes List Table
  *
  * @package           PersonalityAssessment
- * @author            Jules
- * @copyright         2024 Jules
- * @license           GPL-3.0-or-later
+ * @author            Sarath
+ * @copyright         2025 Drizzle limited
+ * @license           Contact: sarath@drizzle.media
  *
  * @wordpress-plugin
  */

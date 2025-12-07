@@ -255,7 +255,19 @@
 	justify-content: space-between;
 }
 
-.pa-prev-btn,
+.pa-prev-btn {
+	background-color: #6c757d;
+	/* Secondary Grey */
+	color: #fff;
+	border: none;
+	padding: 12px 40px;
+	border-radius: 50px;
+	font-size: 18px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
 .pa-next-btn,
 .pa-submit-btn {
 	background-color: #0099FF;
@@ -269,7 +281,14 @@
 	transition: background 0.2s;
 }
 
-.pa-prev-btn:hover,
+.pa-next-btn {
+	margin-left: auto;
+}
+
+.pa-prev-btn:hover {
+	background-color: #5a6268;
+}
+
 .pa-next-btn:hover,
 .pa-submit-btn:hover {
 	background-color: #007ACC;

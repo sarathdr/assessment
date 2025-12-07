@@ -3,9 +3,9 @@
  * Installer
  *
  * @package           PersonalityAssessment
- * @author            Jules
- * @copyright         2024 Jules
- * @license           GPL-3.0-or-later
+ * @author            Sarath
+ * @copyright         2025 Drizzle limited
+ * @license           Contact: sarath@drizzle.media
  *
  * @wordpress-plugin
  */
@@ -13,18 +13,20 @@
 namespace PA;
 
 // Exit if accessed directly.
-if ( ! defined( 'ABSPATH' ) ) {
+if (!defined('ABSPATH')) {
 	exit;
 }
 
 /**
  * Fired during plugin activation
  */
-class Installer {
+class Installer
+{
 	/**
 	 * Run the installer
 	 */
-	public static function install() {
+	public static function install()
+	{
 		self::create_tables();
 		self::create_sample_data();
 	}
@@ -32,7 +34,8 @@ class Installer {
 	/**
 	 * Create the tables
 	 */
-	private static function create_tables() {
+	private static function create_tables()
+	{
 		global $wpdb;
 
 		$charset_collate = $wpdb->get_charset_collate();
@@ -56,7 +59,7 @@ class Installer {
 			UNIQUE KEY slug (slug)
 		) $charset_collate;";
 
-		dbDelta( $sql );
+		dbDelta($sql);
 
 		$sql = "CREATE TABLE {$wpdb->prefix}pa_questions (
 			id BIGINT NOT NULL AUTO_INCREMENT,
@@ -69,7 +72,7 @@ class Installer {
 			KEY quiz_id (quiz_id)
 		) $charset_collate;";
 
-		dbDelta( $sql );
+		dbDelta($sql);
 
 		$sql = "CREATE TABLE {$wpdb->prefix}pa_answers (
 			id BIGINT NOT NULL AUTO_INCREMENT,
@@ -81,7 +84,7 @@ class Installer {
 			KEY question_id (question_id)
 		) $charset_collate;";
 
-		dbDelta( $sql );
+		dbDelta($sql);
 
 		$sql = "CREATE TABLE {$wpdb->prefix}pa_results (
 			id BIGINT NOT NULL AUTO_INCREMENT,
@@ -99,18 +102,19 @@ class Installer {
 			KEY quiz_id (quiz_id)
 		) $charset_collate;";
 
-		dbDelta( $sql );
+		dbDelta($sql);
 	}
 
 	/**
 	 * Create sample data
 	 */
-	private static function create_sample_data() {
+	private static function create_sample_data()
+	{
 		global $wpdb;
 
-		$quiz_exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}pa_quizzes WHERE slug = %s", 'work-style-finder' ) );
+		$quiz_exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}pa_quizzes WHERE slug = %s", 'work-style-finder'));
 
-		if ( $quiz_exists ) {
+		if ($quiz_exists) {
 			return;
 		}
 
@@ -118,12 +122,12 @@ class Installer {
 		$wpdb->insert(
 			"{$wpdb->prefix}pa_quizzes",
 			array(
-				'title'           => 'Work Style Finder',
-				'slug'            => 'work-style-finder',
-				'description'     => 'Discover your dominant work style and how you can leverage it.',
-				'status'          => 'published',
-				'require_login'   => 0,
-				'success_message' => '<h2>' . __( 'Quiz Complete!', 'personality-assessment' ) . '</h2><p>' . __( 'Thank you for completing the quiz. Here are your results:', 'personality-assessment' ) . '</p>[pa_results_summary]',
+				'title' => 'Work Style Finder',
+				'slug' => 'work-style-finder',
+				'description' => 'Discover your dominant work style and how you can leverage it.',
+				'status' => 'published',
+				'require_login' => 0,
+				'success_message' => '<h2>' . __('Quiz Complete!', 'personality-assessment') . '</h2><p>' . __('Thank you for completing the quiz. Here are your results:', 'personality-assessment') . '</p>[pa_results_summary]',
 			)
 		);
 		$quiz_id = $wpdb->insert_id;
@@ -133,10 +137,10 @@ class Installer {
 		$wpdb->insert(
 			"{$wpdb->prefix}pa_questions",
 			array(
-				'quiz_id'     => $quiz_id,
-				'title'       => 'When faced with a complex problem, what is your initial approach?',
-				'type'        => 'single',
-				'position'    => 1,
+				'quiz_id' => $quiz_id,
+				'title' => 'When faced with a complex problem, what is your initial approach?',
+				'type' => 'single',
+				'position' => 1,
 				'is_required' => 1,
 			)
 		);
@@ -150,10 +154,10 @@ class Installer {
 		$wpdb->insert(
 			"{$wpdb->prefix}pa_questions",
 			array(
-				'quiz_id'     => $quiz_id,
-				'title'       => 'Which of these tasks do you enjoy the most?',
-				'type'        => 'single',
-				'position'    => 2,
+				'quiz_id' => $quiz_id,
+				'title' => 'Which of these tasks do you enjoy the most?',
+				'type' => 'single',
+				'position' => 2,
 				'is_required' => 1,
 			)
 		);
@@ -167,10 +171,10 @@ class Installer {
 		$wpdb->insert(
 			"{$wpdb->prefix}pa_questions",
 			array(
-				'quiz_id'     => $quiz_id,
-				'title'       => 'How do you prefer to receive feedback?',
-				'type'        => 'single',
-				'position'    => 3,
+				'quiz_id' => $quiz_id,
+				'title' => 'How do you prefer to receive feedback?',
+				'type' => 'single',
+				'position' => 3,
 				'is_required' => 1,
 			)
 		);
@@ -184,10 +188,10 @@ class Installer {
 		$wpdb->insert(
 			"{$wpdb->prefix}pa_questions",
 			array(
-				'quiz_id'     => $quiz_id,
-				'title'       => 'Which of these statements best describes you? (Select all that apply)',
-				'type'        => 'multiple',
-				'position'    => 4,
+				'quiz_id' => $quiz_id,
+				'title' => 'Which of these statements best describes you? (Select all that apply)',
+				'type' => 'multiple',
+				'position' => 4,
 				'is_required' => 1,
 			)
 		);
@@ -201,10 +205,10 @@ class Installer {
 		$wpdb->insert(
 			"{$wpdb->prefix}pa_questions",
 			array(
-				'quiz_id'     => $quiz_id,
-				'title'       => 'Briefly describe your ideal work environment.',
-				'type'        => 'text',
-				'position'    => 5,
+				'quiz_id' => $quiz_id,
+				'title' => 'Briefly describe your ideal work environment.',
+				'type' => 'text',
+				'position' => 5,
 				'is_required' => 0,
 			)
 		);
