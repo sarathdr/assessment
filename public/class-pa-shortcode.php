@@ -233,7 +233,7 @@ class Shortcode
 			);
 		}
 
-		$summary_html = $this->render_results_summary($score_data['label_scores']);
+		$summary_html = $this->render_results_summary($score_data['label_scores'], $quiz_id);
 		$success_message = str_replace('[pa_results_summary]', $summary_html, $quiz->success_message);
 
 		wp_send_json_success(
@@ -247,23 +247,57 @@ class Shortcode
 	 * Render the results summary HTML.
 	 *
 	 * @param array $label_scores The label scores.
+	 * @param int $quiz_id The quiz ID.
 	 * @return string The HTML.
 	 */
-	public function render_results_summary($label_scores)
+	public function render_results_summary($label_scores, $quiz_id)
 	{
 		if (empty($label_scores)) {
 			return '';
 		}
 
+		// Sort scores descending
+		arsort($label_scores);
+
+		// Take top 5
+		$top_labels = array_slice($label_scores, 0, 5, true);
+
+		global $wpdb;
+
 		ob_start();
 		?>
-		<div class="pa-results-summary">
-			<h3><?php esc_html_e('Your Results:', 'personality-assessment'); ?></h3>
-			<ul>
-				<?php foreach ($label_scores as $label => $score): ?>
-					<li><strong><?php echo esc_html($label); ?>:</strong> <?php echo esc_html($score); ?></li>
-				<?php endforeach; ?>
-			</ul>
+		<div class="pa-results-summary-cards">
+			<?php foreach ($top_labels as $label => $score): ?>
+				<?php
+				// Fetch label settings
+				$settings = $wpdb->get_row($wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}pa_quiz_labels WHERE quiz_id = %d AND label_name = %s",
+					$quiz_id,
+					$label
+				));
+
+				$heading = $settings && $settings->heading ? $settings->heading : $label;
+				$sub_heading = $settings ? $settings->sub_heading : '';
+				$icon_url = $settings ? $settings->icon_url : '';
+				$landing_page_url = $settings ? $settings->landing_page_url : '#';
+				?>
+				<a href="<?php echo esc_url($landing_page_url); ?>" class="pa-result-card" target="_blank">
+					<div class="pa-result-card-icon">
+						<?php if ($icon_url): ?>
+							<img src="<?php echo esc_url($icon_url); ?>" alt="<?php echo esc_attr($label); ?>">
+						<?php else: ?>
+							<span class="pa-default-icon">★</span>
+						<?php endif; ?>
+					</div>
+					<div class="pa-result-card-content">
+						<h4 class="pa-result-card-heading"><?php echo esc_html($heading); ?></h4>
+						<?php if ($sub_heading): ?>
+							<p class="pa-result-card-subheading"><?php echo esc_html($sub_heading); ?></p>
+						<?php endif; ?>
+					</div>
+
+				</a>
+			<?php endforeach; ?>
 		</div>
 		<?php
 		return ob_get_clean();

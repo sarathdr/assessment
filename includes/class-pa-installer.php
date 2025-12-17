@@ -103,6 +103,20 @@ class Installer
 		) $charset_collate;";
 
 		dbDelta($sql);
+
+		$sql = "CREATE TABLE {$wpdb->prefix}pa_quiz_labels (
+			id BIGINT NOT NULL AUTO_INCREMENT,
+			quiz_id BIGINT NOT NULL,
+			label_name VARCHAR(255) NOT NULL,
+			heading TEXT NULL,
+			sub_heading TEXT NULL,
+			landing_page_url TEXT NULL,
+			icon_url TEXT NULL,
+			PRIMARY KEY  (id),
+			KEY quiz_id (quiz_id)
+		) $charset_collate;";
+
+		dbDelta($sql);
 	}
 
 	/**

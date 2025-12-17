@@ -37,6 +37,7 @@ class Admin
 		add_action('admin_init', array($this, 'delete_quiz'));
 		add_action('admin_init', array($this, 'import_quiz_file'));
 		add_action('admin_init', array($this, 'create_quiz_and_redirect'));
+		add_action('admin_init', array($this, 'save_label_settings'));
 		add_action('admin_enqueue_scripts', array($this, 'enqueue_styles'));
 		add_action('wp_ajax_pa_add_answer', array($this, 'add_answer_ajax_handler'));
 		add_action('wp_ajax_pa_delete_answer', array($this, 'delete_answer_ajax_handler'));
@@ -44,9 +45,20 @@ class Admin
 		add_action('wp_ajax_pa_save_question_details', array($this, 'save_question_details_ajax_handler'));
 		add_action('wp_ajax_pa_save_answer_details', array($this, 'save_answer_details_ajax_handler'));
 		add_action('wp_ajax_pa_save_question_title', array($this, 'save_question_title_ajax_handler'));
+		add_action('wp_ajax_pa_get_label_settings', array($this, 'ajax_get_label_settings'));
 		add_action('admin_init', array($this, 'export_results_excel'));
 		add_action('admin_post_pa_export_quiz_json', array($this, 'export_quiz_json'));
 		add_action('admin_notices', array($this, 'show_admin_notices'));
+		add_filter('upload_mimes', array($this, 'allow_svg_upload'));
+	}
+
+	/**
+	 * Allow SVG uploads.
+	 */
+	public function allow_svg_upload($mimes)
+	{
+		$mimes['svg'] = 'image/svg+xml';
+		return $mimes;
 	}
 
 	/**
@@ -565,8 +577,9 @@ class Admin
 			return;
 		}
 
-		wp_enqueue_style('pa-admin-style', PA_PLUGIN_URL . 'assets/css/admin.css', array(), PA_PLUGIN_VERSION);
-		wp_enqueue_script('pa-admin-script', PA_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), PA_PLUGIN_VERSION, true);
+		wp_enqueue_style('pa_admin_css', PA_PLUGIN_URL . 'assets/css/admin.css', array(), PA_PLUGIN_VERSION, 'all');
+		wp_enqueue_media();
+		wp_enqueue_script('pa_admin_js', PA_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), PA_PLUGIN_VERSION, false);
 	}
 
 	/**
@@ -703,164 +716,329 @@ class Admin
 			<a href="?page=personality-assessment"
 				class="page-title-action"><?php esc_html_e('Back to Quizzes', 'personality-assessment'); ?></a>
 			<hr class="wp-header-end">
-			<form method="post">
-				<input type="hidden" name="quiz_id" value="<?php echo esc_attr($quiz_id); ?>" />
-				<?php wp_nonce_field('pa_save_quiz', 'pa_save_quiz_nonce'); ?>
-				<table class="form-table">
-					<tbody>
-						<tr>
-							<th scope="row">
-								<label for="title"><?php esc_html_e('Title', 'personality-assessment'); ?></label>
-							</th>
-							<td>
-								<input type="text" name="title" id="title" class="regular-text"
-									value="<?php echo esc_attr($quiz ? $quiz->title : ''); ?>" />
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="description"><?php esc_html_e('Description', 'personality-assessment'); ?></label>
-							</th>
-							<td>
-								<textarea name="description" id="description" rows="5"
-									cols="50"><?php echo esc_textarea($quiz ? $quiz->description : ''); ?></textarea>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="status"><?php esc_html_e('Status', 'personality-assessment'); ?></label>
-							</th>
-							<td>
-								<select name="status" id="status">
-									<option value="draft" <?php selected($quiz ? $quiz->status : 'draft', 'draft'); ?>>
-										<?php esc_html_e('Draft', 'personality-assessment'); ?>
-									</option>
-									<option value="published" <?php selected($quiz ? $quiz->status : 'draft', 'published'); ?>>
-										<?php esc_html_e('Published', 'personality-assessment'); ?>
-									</option>
-								</select>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label
-									for="require_login"><?php esc_html_e('Requires Login', 'personality-assessment'); ?></label>
-							</th>
-							<td>
-								<input type="checkbox" name="require_login" id="require_login" value="1" <?php checked($quiz ? $quiz->require_login : 1, 1); ?> />
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="webhook_url"><?php esc_html_e('Webhook URL', 'personality-assessment'); ?></label>
-							</th>
-							<td>
-								<input type="url" name="webhook_url" id="webhook_url" class="regular-text"
-									value="<?php echo esc_attr($quiz ? $quiz->webhook_url : ''); ?>" />
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label
-									for="webhook_secret"><?php esc_html_e('Webhook Secret', 'personality-assessment'); ?></label>
-							</th>
-							<td>
-								<input type="text" name="webhook_secret" id="webhook_secret" class="regular-text"
-									value="<?php echo esc_attr($quiz ? $quiz->webhook_secret : ''); ?>" />
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label
-									for="success_message"><?php esc_html_e('Success Message', 'personality-assessment'); ?></label>
-							</th>
-							<td>
-								<?php
-								$content = $quiz ? $quiz->success_message : '';
-								$editor_id = 'success_message';
-								$settings = array('textarea_name' => 'success_message');
-								wp_editor($content, $editor_id, $settings);
-								?>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-				<?php submit_button(__('Save Quiz', 'personality-assessment')); ?>
-			</form>
+
+			<h2 class="nav-tab-wrapper">
+				<a href="#pa-tab-general"
+					class="nav-tab nav-tab-active"><?php esc_html_e('General', 'personality-assessment'); ?></a>
+				<?php if ($quiz_id): ?>
+					<a href="#pa-tab-questions" class="nav-tab"><?php esc_html_e('Questions', 'personality-assessment'); ?></a>
+					<a href="#pa-tab-labels" class="nav-tab"><?php esc_html_e('Label Settings', 'personality-assessment'); ?></a>
+				<?php endif; ?>
+			</h2>
+
+			<div id="pa-tab-general" class="pa-tab-content">
+				<form method="post">
+					<input type="hidden" name="quiz_id" value="<?php echo esc_attr($quiz_id); ?>" />
+					<?php wp_nonce_field('pa_save_quiz', 'pa_save_quiz_nonce'); ?>
+					<table class="form-table">
+						<tbody>
+							<tr>
+								<th scope="row">
+									<label for="title"><?php esc_html_e('Title', 'personality-assessment'); ?></label>
+								</th>
+								<td>
+									<input type="text" name="title" id="title" class="regular-text"
+										value="<?php echo esc_attr($quiz ? $quiz->title : ''); ?>" />
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label
+										for="description"><?php esc_html_e('Description', 'personality-assessment'); ?></label>
+								</th>
+								<td>
+									<textarea name="description" id="description" rows="5"
+										cols="50"><?php echo esc_textarea($quiz ? $quiz->description : ''); ?></textarea>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label for="status"><?php esc_html_e('Status', 'personality-assessment'); ?></label>
+								</th>
+								<td>
+									<select name="status" id="status">
+										<option value="draft" <?php selected($quiz ? $quiz->status : 'draft', 'draft'); ?>>
+											<?php esc_html_e('Draft', 'personality-assessment'); ?>
+										</option>
+										<option value="published" <?php selected($quiz ? $quiz->status : 'draft', 'published'); ?>>
+											<?php esc_html_e('Published', 'personality-assessment'); ?>
+										</option>
+									</select>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label
+										for="require_login"><?php esc_html_e('Requires Login', 'personality-assessment'); ?></label>
+								</th>
+								<td>
+									<input type="checkbox" name="require_login" id="require_login" value="1" <?php checked($quiz ? $quiz->require_login : 1, 1); ?> />
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label
+										for="webhook_url"><?php esc_html_e('Webhook URL', 'personality-assessment'); ?></label>
+								</th>
+								<td>
+									<input type="url" name="webhook_url" id="webhook_url" class="regular-text"
+										value="<?php echo esc_attr($quiz ? $quiz->webhook_url : ''); ?>" />
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label
+										for="webhook_secret"><?php esc_html_e('Webhook Secret', 'personality-assessment'); ?></label>
+								</th>
+								<td>
+									<input type="text" name="webhook_secret" id="webhook_secret" class="regular-text"
+										value="<?php echo esc_attr($quiz ? $quiz->webhook_secret : ''); ?>" />
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label
+										for="success_message"><?php esc_html_e('Success Message', 'personality-assessment'); ?></label>
+								</th>
+								<td>
+									<?php
+									$content = $quiz ? $quiz->success_message : '';
+									$editor_id = 'success_message';
+									$settings = array('textarea_name' => 'success_message');
+									wp_editor($content, $editor_id, $settings);
+									?>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+					<?php submit_button(__('Save Quiz', 'personality-assessment')); ?>
+				</form>
+			</div>
+
 			<?php if ($quiz_id): ?>
-				<div id="pa-quiz-editor-container">
-					<div id="pa-quiz-editor-main">
-						<div class="questions-header">
-							<h2><?php esc_html_e('Questions', 'personality-assessment'); ?></h2>
-						</div>
-						<div class="questions-list">
-							<?php
-							$questions = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d ORDER BY position ASC", $quiz_id));
-							if ($questions) {
-								foreach ($questions as $question) {
-									$this->render_question_item($question);
+				<div id="pa-tab-labels" class="pa-tab-content" style="display: none;">
+					<h2><?php esc_html_e('Label Settings', 'personality-assessment'); ?></h2>
+					<p><?php esc_html_e('Configure headings, subheadings, and icons for each personality label.', 'personality-assessment'); ?>
+					</p>
+
+					<form method="post" enctype="multipart/form-data">
+						<input type="hidden" name="action" value="save_label_settings" />
+						<input type="hidden" name="quiz_id" value="<?php echo esc_attr($quiz_id); ?>" />
+						<?php wp_nonce_field('pa_save_label_settings', 'pa_save_label_settings_nonce'); ?>
+
+						<?php $this->render_label_settings_content($quiz_id); ?>
+					</form>
+				</div>
+			<?php endif; ?>
+
+			<?php if ($quiz_id): ?>
+				<div id="pa-tab-questions" class="pa-tab-content" style="display: none;">
+					<div id="pa-quiz-editor-container">
+						<div id="pa-quiz-editor-main">
+							<div class="questions-header">
+								<h2><?php esc_html_e('Questions', 'personality-assessment'); ?></h2>
+							</div>
+							<div class="questions-list">
+								<?php
+								$questions = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d ORDER BY position ASC", $quiz_id));
+								if ($questions) {
+									foreach ($questions as $question) {
+										$this->render_question_item($question);
+									}
 								}
-							}
-							?>
+								?>
+							</div>
 						</div>
-					</div>
-					<div id="pa-quiz-editor-sidebar">
-						<button class="button button-primary" id="add-question-button"
-							data-quiz-id="<?php echo esc_attr($quiz_id); ?>">
-							<?php esc_html_e('Add Question', 'personality-assessment'); ?>
-						</button>
+						<div id="pa-quiz-editor-sidebar">
+							<button class="button button-primary" id="add-question-button"
+								data-quiz-id="<?php echo esc_attr($quiz_id); ?>">
+								<?php esc_html_e('Add Question', 'personality-assessment'); ?>
+							</button>
 
-						<div id="add-question-form-wrapper" style="display: none;">
-							<form method="post" id="add-question-form" class="pa-sidebar-form">
-								<input type="hidden" name="quiz_id" value="<?php echo esc_attr($quiz_id); ?>" />
-								<?php wp_nonce_field('pa_save_question', 'pa_save_question_nonce'); ?>
-								<div class="form-field">
-									<label for="question_title"><?php esc_html_e('Title', 'personality-assessment'); ?></label>
-									<input type="text" name="question_title" id="question_title" class="regular-text" />
-								</div>
-								<?php submit_button(__('Add Question', 'personality-assessment')); ?>
-							</form>
-						</div>
-
-
-						<div class="question-settings-wrapper" style="display: none;">
-							<form method="post" id="question-settings-form">
-								<div class="settings-fields">
-									<input type="hidden" name="question_id" id="setting_question_id" value="" />
-									<input type="hidden" name="action" value="pa_save_question_details" />
-									<?php wp_nonce_field('pa_save_question_details', 'pa_save_question_details_nonce'); ?>
-
+							<div id="add-question-form-wrapper" style="display: none;">
+								<form method="post" id="add-question-form" class="pa-sidebar-form">
+									<input type="hidden" name="quiz_id" value="<?php echo esc_attr($quiz_id); ?>" />
+									<?php wp_nonce_field('pa_save_question', 'pa_save_question_nonce'); ?>
 									<div class="form-field">
-										<label
-											for="setting_question_type"><?php esc_html_e('Question Type', 'personality-assessment'); ?></label>
-										<select name="question_type" id="setting_question_type">
-											<option value="text"><?php esc_html_e('Text', 'personality-assessment'); ?></option>
-											<option value="single"><?php esc_html_e('Single Choice', 'personality-assessment'); ?>
-											</option>
-											<option value="multiple">
-												<?php esc_html_e('Multiple Choice', 'personality-assessment'); ?>
-											</option>
-										</select>
+										<label for="question_title"><?php esc_html_e('Title', 'personality-assessment'); ?></label>
+										<input type="text" name="question_title" id="question_title" class="regular-text" />
 									</div>
-									<div class="form-field">
-										<input type="checkbox" name="is_required" id="setting_is_required" value="1" />
-										<label
-											for="setting_is_required"><?php esc_html_e('Required', 'personality-assessment'); ?></label>
-									</div>
+									<?php submit_button(__('Add Question', 'personality-assessment')); ?>
+								</form>
+							</div>
 
-									<div class="form-actions">
-										<a href="#"
-											class="cancel-button"><?php esc_html_e('Cancel', 'personality-assessment'); ?></a>
-										<?php submit_button(__('Save Question', 'personality-assessment'), 'primary', 'save-question-settings'); ?>
+
+							<div class="question-settings-wrapper" style="display: none;">
+								<form method="post" id="question-settings-form">
+									<div class="settings-fields">
+										<input type="hidden" name="question_id" id="setting_question_id" value="" />
+										<input type="hidden" name="action" value="pa_save_question_details" />
+										<?php wp_nonce_field('pa_save_question_details', 'pa_save_question_details_nonce'); ?>
+
+										<div class="form-field">
+											<label
+												for="setting_question_type"><?php esc_html_e('Question Type', 'personality-assessment'); ?></label>
+											<select name="question_type" id="setting_question_type">
+												<option value="text"><?php esc_html_e('Text', 'personality-assessment'); ?></option>
+												<option value="single">
+													<?php esc_html_e('Single Choice', 'personality-assessment'); ?>
+												</option>
+												<option value="multiple">
+													<?php esc_html_e('Multiple Choice', 'personality-assessment'); ?>
+												</option>
+											</select>
+										</div>
+										<div class="form-field">
+											<input type="checkbox" name="is_required" id="setting_is_required" value="1" />
+											<label
+												for="setting_is_required"><?php esc_html_e('Required', 'personality-assessment'); ?></label>
+										</div>
+
+										<div class="form-actions">
+											<a href="#"
+												class="cancel-button"><?php esc_html_e('Cancel', 'personality-assessment'); ?></a>
+											<?php submit_button(__('Save Question', 'personality-assessment'), 'primary', 'save-question-settings'); ?>
+										</div>
 									</div>
-								</div>
-							</form>
+								</form>
+							</div>
 						</div>
 					</div>
 				</div>
 			<?php endif; ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Render the label settings content.
+	 * 
+	 * @param int $quiz_id The quiz ID.
+	 */
+	public function render_label_settings_content($quiz_id)
+	{
+		global $wpdb;
+
+		// Fetch labels ONLY from label_weights JSON in answers
+		// This is the source of truth as per user request
+		$labels = array();
+		$questions = $wpdb->get_results($wpdb->prepare("SELECT id FROM {$wpdb->prefix}pa_questions WHERE quiz_id = %d", $quiz_id));
+
+		if ($questions) {
+			foreach ($questions as $question) {
+				$answers = $wpdb->get_results($wpdb->prepare("SELECT label_weights FROM {$wpdb->prefix}pa_answers WHERE question_id = %d", $question->id));
+				foreach ($answers as $answer) {
+					$weights = json_decode($answer->label_weights, true);
+					if (is_array($weights)) {
+						foreach ($weights as $label => $weight) {
+							if (!empty($label) && !in_array($label, $labels)) {
+								$labels[] = $label;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		$labels = array_unique($labels);
+		sort($labels);
+
+		// Cleanup: Remove settings for labels that are NOT in the fetched list
+		if (!empty($labels)) {
+			$placeholders = implode(',', array_fill(0, count($labels), '%s'));
+			$wpdb->query($wpdb->prepare(
+				"DELETE FROM {$wpdb->prefix}pa_quiz_labels 
+				WHERE quiz_id = %d 
+				AND label_name NOT IN ($placeholders)",
+				array_merge(array($quiz_id), $labels)
+			));
+		} else {
+			// If no labels exist, remove all settings for this quiz
+			$wpdb->delete(
+				"{$wpdb->prefix}pa_quiz_labels",
+				array('quiz_id' => $quiz_id),
+				array('%d')
+			);
+		}
+
+		if (empty($labels)) {
+			echo '<p>' . esc_html__('No labels found. Add questions and answers first.', 'personality-assessment') . '</p>';
+		} else {
+			echo '<div class="pa-label-settings-grid">';
+
+			foreach ($labels as $label) {
+				// Fetch existing settings
+				$settings = $wpdb->get_row($wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}pa_quiz_labels WHERE quiz_id = %d AND label_name = %s",
+					$quiz_id,
+					$label
+				));
+
+				$heading = $settings ? $settings->heading : '';
+				$sub_heading = $settings ? $settings->sub_heading : '';
+				$landing_page_url = $settings ? $settings->landing_page_url : '';
+				$icon_url = $settings ? $settings->icon_url : '';
+				$label_key = sanitize_key($label);
+
+				echo '<div class="pa-label-setting-card">';
+				echo '<h3>' . esc_html($label) . '</h3>';
+
+				echo '<div class="pa-field-group">';
+				echo '<label>' . esc_html__('Heading', 'personality-assessment') . '</label>';
+				echo '<input type="text" name="labels[' . esc_attr($label_key) . '][heading]" value="' . esc_attr($heading) . '" class="regular-text" />';
+				echo '</div>';
+
+				echo '<div class="pa-field-group">';
+				echo '<label>' . esc_html__('Sub-heading', 'personality-assessment') . '</label>';
+				echo '<input type="text" name="labels[' . esc_attr($label_key) . '][sub_heading]" value="' . esc_attr($sub_heading) . '" class="regular-text" />';
+				echo '</div>';
+
+				echo '<div class="pa-field-group">';
+				echo '<label>' . esc_html__('Landing Page URL', 'personality-assessment') . '</label>';
+				echo '<input type="url" name="labels[' . esc_attr($label_key) . '][landing_page_url]" value="' . esc_attr($landing_page_url) . '" class="regular-text" />';
+				echo '</div>';
+
+				echo '<div class="pa-field-group">';
+				echo '<label>' . esc_html__('Icon', 'personality-assessment') . '</label>';
+				echo '<div class="pa-icon-upload-wrapper">';
+				echo '<input type="text" name="labels[' . esc_attr($label_key) . '][icon_url]" id="icon_url_' . esc_attr($label_key) . '" value="' . esc_attr($icon_url) . '" class="regular-text" />';
+				echo '<button type="button" class="button pa-upload-icon-btn" data-target="#icon_url_' . esc_attr($label_key) . '">' . esc_html__('Upload', 'personality-assessment') . '</button>';
+				echo '</div>';
+				if ($icon_url) {
+					echo '<img src="' . esc_url($icon_url) . '" class="pa-icon-preview" />';
+				}
+				echo '<input type="hidden" name="labels[' . esc_attr($label_key) . '][name]" value="' . esc_attr($label) . '" />';
+				echo '</div>';
+
+				echo '</div>'; // .pa-label-setting-card
+			}
+
+			echo '</div>'; // .pa-label-settings-grid
+			submit_button(__('Save Label Settings', 'personality-assessment'));
+		}
+	}
+
+	/**
+	 * AJAX handler to get label settings.
+	 */
+	public function ajax_get_label_settings()
+	{
+		check_ajax_referer('pa_save_label_settings', 'nonce');
+
+		if (!current_user_can('manage_options')) {
+			wp_send_json_error(__('Permission denied.', 'personality-assessment'));
+		}
+
+		$quiz_id = isset($_POST['quiz_id']) ? intval($_POST['quiz_id']) : 0;
+		if (!$quiz_id) {
+			wp_send_json_error(__('Invalid quiz ID.', 'personality-assessment'));
+		}
+
+		ob_start();
+		$this->render_label_settings_content($quiz_id);
+		$html = ob_get_clean();
+
+		wp_send_json_success(array('html' => $html));
 	}
 
 	/**
@@ -1571,6 +1749,70 @@ class Admin
 		header('Content-Type: application/json');
 		header('Content-Disposition: attachment; filename="' . $filename . '"');
 		echo wp_json_encode($export_data, JSON_PRETTY_PRINT);
+		exit;
+	}
+
+	/**
+	 * Save label settings.
+	 */
+	public function save_label_settings()
+	{
+		if (!isset($_POST['pa_save_label_settings_nonce']) || !wp_verify_nonce($_POST['pa_save_label_settings_nonce'], 'pa_save_label_settings')) {
+			return;
+		}
+
+		if (!current_user_can('manage_options')) {
+			return;
+		}
+
+		global $wpdb;
+
+		$quiz_id = isset($_POST['quiz_id']) ? intval($_POST['quiz_id']) : 0;
+		$labels = isset($_POST['labels']) ? $_POST['labels'] : array();
+
+		if ($quiz_id && !empty($labels)) {
+			foreach ($labels as $label_data) {
+				$label_name = sanitize_text_field(wp_unslash($label_data['name']));
+				$heading = sanitize_text_field(wp_unslash($label_data['heading']));
+				$sub_heading = sanitize_text_field(wp_unslash($label_data['sub_heading']));
+				$landing_page_url = sanitize_url(wp_unslash($label_data['landing_page_url']));
+				$icon_url = sanitize_url(wp_unslash($label_data['icon_url']));
+
+				// Check if record exists
+				$exists = $wpdb->get_var($wpdb->prepare(
+					"SELECT id FROM {$wpdb->prefix}pa_quiz_labels WHERE quiz_id = %d AND label_name = %s",
+					$quiz_id,
+					$label_name
+				));
+
+				if ($exists) {
+					$wpdb->update(
+						"{$wpdb->prefix}pa_quiz_labels",
+						array(
+							'heading' => $heading,
+							'sub_heading' => $sub_heading,
+							'landing_page_url' => $landing_page_url,
+							'icon_url' => $icon_url,
+						),
+						array('id' => $exists)
+					);
+				} else {
+					$wpdb->insert(
+						"{$wpdb->prefix}pa_quiz_labels",
+						array(
+							'quiz_id' => $quiz_id,
+							'label_name' => $label_name,
+							'heading' => $heading,
+							'sub_heading' => $sub_heading,
+							'landing_page_url' => $landing_page_url,
+							'icon_url' => $icon_url,
+						)
+					);
+				}
+			}
+		}
+
+		wp_safe_redirect(admin_url('admin.php?page=personality-assessment&action=edit&id=' . $quiz_id . '&message=1'));
 		exit;
 	}
 }
