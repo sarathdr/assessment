@@ -323,7 +323,7 @@ textarea {
 	align-items: center;
 	background: #fff;
 	background-color: var(--pa-bg-color, #fff);
-	border: 1px solid transparent;
+	border: 1px solid var(--pa-accent-color);
 	border-radius: 12px;
 	padding: 15px;
 	text-decoration: none;
