@@ -264,11 +264,27 @@ class Shortcode
 
 		global $wpdb;
 
+		// Define Palette
+		$palette = array(
+			array('accent' => '#325757', 'bg' => '#EFF5F5'), // Green (Budgeting)
+			array('accent' => '#4DA8B6', 'bg' => '#EBF7F9'), // Teal (Independent Living)
+			array('accent' => '#A0802C', 'bg' => '#FFF8E6'), // Yellow (Resilience)
+			array('accent' => '#DE5B52', 'bg' => '#FFF1F0'), // Red (Love and Affection)
+			array('accent' => '#2D6B9A', 'bg' => '#EBF6FF'), // Blue (React or Respond)
+		);
+
 		ob_start();
 		?>
 		<div class="pa-results-summary-cards">
-			<?php foreach ($top_labels as $label => $score): ?>
-				<?php
+			<?php
+			$count = 0;
+			foreach ($top_labels as $label => $score):
+				$palette_index = $count % count($palette);
+				$current_palette = $palette[$palette_index];
+				$accent_color = $current_palette['accent'];
+				$bg_color = $current_palette['bg'];
+				$count++;
+
 				// Fetch label settings
 				$settings = $wpdb->get_row($wpdb->prepare(
 					"SELECT * FROM {$wpdb->prefix}pa_quiz_labels WHERE quiz_id = %d AND label_name = %s",
@@ -281,14 +297,19 @@ class Shortcode
 				$icon_url = $settings ? $settings->icon_url : '';
 				$landing_page_url = $settings ? $settings->landing_page_url : '#';
 				?>
-				<a href="<?php echo esc_url($landing_page_url); ?>" class="pa-result-card" target="_blank">
-					<div class="pa-result-card-icon">
+				<a href="<?php echo esc_url($landing_page_url); ?>" class="pa-result-card" target="_blank"
+					style="--pa-accent-color: <?php echo esc_attr($accent_color); ?>; --pa-bg-color: <?php echo esc_attr($bg_color); ?>;">
+
+					<div class="pa-result-card-icon-wrapper">
 						<?php if ($icon_url): ?>
-							<img src="<?php echo esc_url($icon_url); ?>" alt="<?php echo esc_attr($label); ?>">
+							<div class="pa-result-card-icon-mask"
+								style="-webkit-mask-image: url('<?php echo esc_url($icon_url); ?>'); mask-image: url('<?php echo esc_url($icon_url); ?>');">
+							</div>
 						<?php else: ?>
 							<span class="pa-default-icon">★</span>
 						<?php endif; ?>
 					</div>
+
 					<div class="pa-result-card-content">
 						<h4 class="pa-result-card-heading"><?php echo esc_html($heading); ?></h4>
 						<?php if ($sub_heading): ?>

@@ -578,8 +578,9 @@ class Admin
 		}
 
 		wp_enqueue_style('pa_admin_css', PA_PLUGIN_URL . 'assets/css/admin.css', array(), PA_PLUGIN_VERSION, 'all');
+		wp_enqueue_style('wp-color-picker');
 		wp_enqueue_media();
-		wp_enqueue_script('pa_admin_js', PA_PLUGIN_URL . 'assets/js/admin.js', array('jquery'), PA_PLUGIN_VERSION, false);
+		wp_enqueue_script('pa_admin_js', PA_PLUGIN_URL . 'assets/js/admin.js', array('jquery', 'wp-color-picker'), PA_PLUGIN_VERSION, false);
 	}
 
 	/**
@@ -978,6 +979,7 @@ class Admin
 				$sub_heading = $settings ? $settings->sub_heading : '';
 				$landing_page_url = $settings ? $settings->landing_page_url : '';
 				$icon_url = $settings ? $settings->icon_url : '';
+				$color = $settings ? $settings->color : '';
 				$label_key = sanitize_key($label);
 
 				echo '<div class="pa-label-setting-card">';
@@ -1009,6 +1011,8 @@ class Admin
 				}
 				echo '<input type="hidden" name="labels[' . esc_attr($label_key) . '][name]" value="' . esc_attr($label) . '" />';
 				echo '</div>';
+
+
 
 				echo '</div>'; // .pa-label-setting-card
 			}
@@ -1777,6 +1781,7 @@ class Admin
 				$sub_heading = sanitize_text_field(wp_unslash($label_data['sub_heading']));
 				$landing_page_url = sanitize_url(wp_unslash($label_data['landing_page_url']));
 				$icon_url = sanitize_url(wp_unslash($label_data['icon_url']));
+				$color = sanitize_text_field(wp_unslash($label_data['color']));
 
 				// Check if record exists
 				$exists = $wpdb->get_var($wpdb->prepare(
@@ -1793,6 +1798,7 @@ class Admin
 							'sub_heading' => $sub_heading,
 							'landing_page_url' => $landing_page_url,
 							'icon_url' => $icon_url,
+							'color' => $color,
 						),
 						array('id' => $exists)
 					);
@@ -1806,6 +1812,7 @@ class Admin
 							'sub_heading' => $sub_heading,
 							'landing_page_url' => $landing_page_url,
 							'icon_url' => $icon_url,
+							'color' => $color,
 						)
 					);
 				}

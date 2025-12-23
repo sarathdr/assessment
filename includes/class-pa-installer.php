@@ -112,6 +112,7 @@ class Installer
 			sub_heading TEXT NULL,
 			landing_page_url TEXT NULL,
 			icon_url TEXT NULL,
+			color VARCHAR(20) DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY quiz_id (quiz_id)
 		) $charset_collate;";

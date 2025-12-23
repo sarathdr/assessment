@@ -2,6 +2,11 @@
     'use strict';
 
     $(function() {
+        // Initialize Color Picker
+        if ($.fn.wpColorPicker) {
+            $('.pa-color-picker').wpColorPicker();
+        }
+
         var frame;
 
         // Add Question Button
