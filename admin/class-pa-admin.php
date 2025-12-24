@@ -589,12 +589,12 @@ class Admin
 	public function add_admin_menu()
 	{
 		add_menu_page(
-			__('Personality Assessment', 'personality-assessment'),
-			__('Personality Assessment', 'personality-assessment'),
+			__('Selfio', 'personality-assessment'),
+			__('Selfio', 'personality-assessment'),
 			'manage_options',
 			'personality-assessment',
 			array($this, 'render_quizzes_page'),
-			'dashicons-forms',
+			'dashicons-id-alt',
 			20
 		);
 

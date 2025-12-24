@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Personality Assessment
+ * Plugin Name:       Selfio
  * Plugin URI:        https://example.com/plugins/the-basics/
  * Description:       Create and manage personality quizzes with weighted answers.
  * Version:           1.0.0
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 
 define('PA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PA_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('PA_PLUGIN_VERSION', '1.0.0');
+define('PA_PLUGIN_VERSION', '1.0.1');
 
 // Include the autoloader.
 spl_autoload_register(

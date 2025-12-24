@@ -236,6 +236,9 @@ class Shortcode
 		$summary_html = $this->render_results_summary($score_data['label_scores'], $quiz_id);
 		$success_message = str_replace('[pa_results_summary]', $summary_html, $quiz->success_message);
 
+		// Send Email
+		$this->send_results_email($result_data['user_id'], $quiz, $score_data);
+
 		wp_send_json_success(
 			array(
 				'success_message' => do_shortcode($success_message),
@@ -316,6 +319,130 @@ class Shortcode
 							<p class="pa-result-card-subheading"><?php echo esc_html($sub_heading); ?></p>
 						<?php endif; ?>
 					</div>
+
+				</a>
+			<?php endforeach; ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Send results email to the user.
+	 *
+	 * @param int $user_id The user ID.
+	 * @param object $quiz The quiz object.
+	 * @param array $score_data The score data.
+	 */
+	private function send_results_email($user_id, $quiz, $score_data)
+	{
+		$user = get_userdata($user_id);
+		if (!$user) {
+			return;
+		}
+
+		$to = $user->user_email;
+		$subject = sprintf(__('Your Results: %s', 'personality-assessment'), $quiz->title);
+
+		$summary_html = $this->render_email_summary($score_data['label_scores'], $quiz->id);
+		$message_content = str_replace('[pa_results_summary]', $summary_html, $quiz->success_message);
+
+		// Simple HTML wrapper
+		$body = '<!DOCTYPE html><html><body>';
+		$body .= '<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">';
+		$body .= do_shortcode($message_content);
+		$body .= '</div>';
+		$body .= '</body></html>';
+
+		$headers = array('Content-Type: text/html; charset=UTF-8');
+
+		wp_mail($to, $subject, $body, $headers);
+	}
+
+	/**
+	 * Render the results summary HTML for Email (Inline Styles).
+	 *
+	 * @param array $label_scores The label scores.
+	 * @param int $quiz_id The quiz ID.
+	 * @return string The HTML.
+	 */
+	public function render_email_summary($label_scores, $quiz_id)
+	{
+		if (empty($label_scores)) {
+			return '';
+		}
+
+		// Sort scores descending
+		arsort($label_scores);
+
+		// Take top 5
+		$top_labels = array_slice($label_scores, 0, 5, true);
+
+		global $wpdb;
+
+		// Define Palette
+		$palette = array(
+			array('accent' => '#325757', 'bg' => '#EFF5F5'), // Green (Budgeting)
+			array('accent' => '#4DA8B6', 'bg' => '#EBF7F9'), // Teal (Independent Living)
+			array('accent' => '#A0802C', 'bg' => '#FFF8E6'), // Yellow (Resilience)
+			array('accent' => '#DE5B52', 'bg' => '#FFF1F0'), // Red (Love and Affection)
+			array('accent' => '#2D6B9A', 'bg' => '#EBF6FF'), // Blue (React or Respond)
+		);
+
+		ob_start();
+		?>
+		<div style="margin-top: 20px;">
+			<?php
+			$count = 0;
+			foreach ($top_labels as $label => $score):
+				$palette_index = $count % count($palette);
+				$current_palette = $palette[$palette_index];
+				$accent_color = $current_palette['accent'];
+				$bg_color = $current_palette['bg'];
+				$count++;
+
+				// Fetch label settings
+				$settings = $wpdb->get_row($wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}pa_quiz_labels WHERE quiz_id = %d AND label_name = %s",
+					$quiz_id,
+					$label
+				));
+
+				$heading = $settings && $settings->heading ? $settings->heading : $label;
+				$sub_heading = $settings ? $settings->sub_heading : '';
+				$icon_url = $settings ? $settings->icon_url : '';
+				$landing_page_url = $settings ? $settings->landing_page_url : '#';
+				?>
+				<a href="<?php echo esc_url($landing_page_url); ?>" target="_blank"
+					style="display: block; background-color: <?php echo esc_attr($bg_color); ?>; border: 1px solid <?php echo esc_attr($accent_color); ?>; border-radius: 12px; padding: 15px; text-decoration: none; color: #333; margin-bottom: 15px; font-family: sans-serif;">
+
+					<table cellpadding="0" cellspacing="0" border="0" width="100%">
+						<tr>
+							<td width="60" valign="middle">
+								<div
+									style="width: 50px; height: 50px; background-color: #fff; border-radius: 10px; display: block; overflow: hidden; text-align: center; line-height: 50px;">
+									<?php if ($icon_url): ?>
+										<!-- Email clients often struggle with masks, so just show the image directly if possible or use the mask color wrapper if strictly needed. simpler is to just show img -->
+										<img src="<?php echo esc_url($icon_url); ?>" alt=""
+											style="width: 30px; height: 30px; object-fit: contain; vertical-align: middle; margin-top: 10px;">
+									<?php else: ?>
+										<span style="font-size: 24px; color: #8E8E93;">★</span>
+									<?php endif; ?>
+								</div>
+							</td>
+							<td valign="middle">
+								<h4
+									style="margin: 0 0 5px 0; font-size: 18px; font-weight: 600; color: #1C1C1E; font-family: sans-serif;">
+									<?php echo esc_html($heading); ?>
+								</h4>
+								<?php if ($sub_heading): ?>
+									<p style="margin: 0; font-size: 14px; color: #8E8E93; font-family: sans-serif;">
+										<?php echo esc_html($sub_heading); ?>
+									</p>
+								<?php endif; ?>
+							</td>
+						</tr>
+					</table>
 
 				</a>
 			<?php endforeach; ?>
